@@ -333,6 +333,19 @@ export function LoginPanel({ active, onComplete }: LoginPanelProps) {
 
             {!loadingProviders ? (
               <div className="space-y-2">
+                {/* NIM 不是 OAuth provider，无法进入 visibleProviders 排序；
+                    这里把 NIM 入口固定为首项，点击进入默认选中 NIM 的 API Key 表单，
+                    下方 Z.ai/BigModel OAuth 入口保持原样供手动选择。 */}
+                <Button
+                  variant="default"
+                  className="h-10 w-full text-ui-base"
+                  size="lg"
+                  onClick={() => {
+                    setLoginMode("apiKey");
+                  }}
+                >
+                  {intl.formatMessage({ id: "login.oauth.button.nvidia" })}
+                </Button>
                 {visibleProviders.map((provider) => (
                   <Button
                     key={provider.id}

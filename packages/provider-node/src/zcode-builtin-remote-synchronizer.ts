@@ -6,6 +6,9 @@ import type { ZCodeBuiltinRelease } from "./zcode-builtin-release.js";
 
 const HOUR_MS = 60 * 60 * 1_000;
 
+// Riddi 的 Built-in provider 配置只来自 bundled/local 文件，远端同步永久关闭（见 #refresh）。
+const RIDDI_REMOTE_BUILTIN_SYNC_ENABLED: boolean = false;
+
 export type ZCodeBuiltinRefreshResult =
   | "updated"
   | "unchanged"
@@ -79,6 +82,13 @@ export class ZCodeBuiltinRemoteSynchronizer {
   }
 
   async #refresh(force: boolean, signal: AbortSignal): Promise<ZCodeBuiltinRefreshResult> {
+    // Riddi 只使用 bundled/local 的 zcode-builtin.json：远端 Built-in 配置同步已禁用，
+    // 避免 Z.ai 控制面在运行时覆盖本地 provider 目录。Bundled/Active 读取、文件监听
+    // 与 ZCODE_BUILTIN_PROVIDER_CONFIG_FILE 覆盖路径不受影响；fetchRelease 不会被调用。
+    if (RIDDI_REMOTE_BUILTIN_SYNC_ENABLED === false) {
+      this.#report({ result: "skipped" });
+      return "skipped";
+    }
     const endpointKey = (await this.#options.resolveEndpointKey()).trim();
     if (this.#disposed) return "disposed";
     if (!endpointKey) throw new Error("ZCode Built-in 远端 Endpoint 不能为空");

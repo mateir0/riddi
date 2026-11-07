@@ -175,6 +175,13 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
               </SelectTrigger>
               <SelectContent align="end" className="rounded-lg">
                 <SelectItem
+                  value="nvidia"
+                  className="rounded-md"
+                  data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "nvidia")}
+                >
+                  {intl.formatMessage({ id: "login.apiKey.provider.nvidia" })}
+                </SelectItem>
+                <SelectItem
                   value="zai"
                   className="rounded-md"
                   data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "zai")}

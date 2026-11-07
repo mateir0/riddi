@@ -1,9 +1,34 @@
 {
   "schemaVersion": 1,
-  "revision": 43,
+  "revision": 44,
   "config": {
     "providerConfigRules": {
       "templateRules": [
+        {
+          "templateId": "nvidia-nim",
+          "templateNameMap": {
+            "zh-CN": "NVIDIA NIM",
+            "en-US": "NVIDIA NIM"
+          },
+          "config": {
+            "access": {
+              "type": "api-key",
+              "apiKeyManagementUrl": "https://build.nvidia.com/explore/discover"
+            },
+            "api": {
+              "type": "openai-chat-completions",
+              "baseUrl": "https://integrate.api.nvidia.com/v1"
+            },
+            "builtinModelIds": [
+              "moonshotai/kimi-k2.6",
+              "z-ai/glm-5.3",
+              "z-ai/glm-5.3-flash",
+              "deepseek-ai/deepseek-v4.1-flash",
+              "nvidia/nemotron-3-ultra-550b-a55b",
+              "nvidia/nemotron-3-super-120b-a12b"
+            ]
+          }
+        },
         {
           "templateId": "zai-api",
           "templateNameMap": {
@@ -8249,6 +8274,66 @@
                 "max": 131072,
                 "map": "{\"max_tokens\": maxOutputTokens}"
               }
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "moonshotai/kimi-k2.6",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "z-ai/glm-5.3",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "z-ai/glm-5.3-flash",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "deepseek-ai/deepseek-v4.1-flash",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "nvidia/nemotron-3-ultra-550b-a55b",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            }
+          }
+        },
+        {
+          "templateId": "nvidia-nim",
+          "modelId": "nvidia/nemotron-3-super-120b-a12b",
+          "config": {
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
             }
           }
         }

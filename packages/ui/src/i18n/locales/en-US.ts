@@ -1492,6 +1492,7 @@ const enUS: Record<string, string> = {
   "login.oauth.noProviders":
     "No account providers are available right now. Please try again later.",
   "login.oauth.button": "Continue with {provider}",
+  "login.oauth.button.nvidia": "Connect to NVIDIA NIM",
   "login.oauth.button.zai": "Connect to Z.ai",
   "login.oauth.button.bigmodel": "Connect to BigModel",
   "login.oauth.regionTag.zai": "Global",
@@ -1512,6 +1513,7 @@ const enUS: Record<string, string> = {
   "login.apiKey.title": "API Key",
   "login.apiKey.placeholder": "Enter API key",
   "login.apiKey.providerLabel": "API key provider",
+  "login.apiKey.provider.nvidia": "NVIDIA NIM",
   "login.apiKey.provider.zai": "Z.ai",
   "login.apiKey.provider.bigmodel": "BigModel",
   "login.apiKey.getApiKey": "Get API Key",
