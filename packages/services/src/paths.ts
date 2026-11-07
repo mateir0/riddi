@@ -42,9 +42,9 @@ export function getDataBaseDir(): string {
   return defaultDataBaseDir;
 }
 
-/** {dataBaseDir}/.zcode */
+/** {dataBaseDir}/.riddi */
 export function getZCodeDataRootDir(): string {
-  return join(getDataBaseDir(), ".zcode");
+  return join(getDataBaseDir(), ".riddi");
 }
 
 /** 非项目对话共享的真实工作目录；默认 ~/.zcode/workspace/default。 */

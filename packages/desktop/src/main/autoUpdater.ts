@@ -25,6 +25,9 @@ import { verifyWindowsAuthenticodeSignature } from "../../scripts/powershell-com
 import { ManifestUpdateProvider, getElectronReleasePlatform } from "./manifestUpdateProvider.js";
 
 export const CHECK_FOR_UPDATE_MENU_ID = "check-for-update";
+// Riddi 没有自己的更新服务：打包态自动更新永久关闭，禁止请求上游 Z.ai 更新清单。
+// 所有更新入口（init / canUseAutoUpdaterInCurrentRuntime / 手动检查）都必须先过这道闸。
+export const RIDDI_AUTO_UPDATE_ENABLED = false;
 const AUTO_UPDATE_POLL_INTERVAL_MS = 15 * 60 * 1000;
 const AUTO_UPDATE_VISIBLE_POLL_INTERVAL_MS = 2 * 60 * 1000;
 const UPDATE_FEED_URL_ENV = "ZCODE_UPDATE_FEED_URL";
@@ -174,7 +177,7 @@ function isDevAutoUpdateEnabled(): boolean {
 }
 
 function canUseAutoUpdaterInCurrentRuntime(): boolean {
-  return app.isPackaged || isDevAutoUpdateEnabled();
+  return RIDDI_AUTO_UPDATE_ENABLED && (app.isPackaged || isDevAutoUpdateEnabled());
 }
 
 function shouldRelaunchForDevAutoUpdateInstall(): boolean {
@@ -1642,7 +1645,7 @@ export async function acknowledgePostUpdateReleaseNotes(
 }
 
 export async function initAutoUpdater(options: InitAutoUpdaterOptions = {}): Promise<void> {
-  if (options.enabled === false) {
+  if (RIDDI_AUTO_UPDATE_ENABLED === false || options.enabled === false) {
     autoUpdaterDisabledForProductFlavor = true;
     if (autoUpdatePollTimer) {
       clearInterval(autoUpdatePollTimer);
