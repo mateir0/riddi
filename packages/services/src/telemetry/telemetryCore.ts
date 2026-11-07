@@ -20,6 +20,10 @@ import { getAppConfigDir } from "../paths.js";
 
 const REPORT_ENDPOINT = ZCODE_TELEMETRY_REPORT_ENDPOINT;
 
+// Riddi 不把 telemetry 事件发往任何远端：即使构建期注入了上报端点，
+// sendReport 也会在发出请求前返回；本地事件状态（telemetry-state）照常维护。
+export const RIDDI_TELEMETRY_REPORT_ENABLED = false;
+
 function sessionCreateEventId(userId: string, sessionId: string): string {
   const bytes = createHash("sha256")
     .update(JSON.stringify(["zcode:session_create:v1", userId, sessionId]))
@@ -415,6 +419,8 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     userId: string,
     deviceMid: string,
   ): Promise<void> {
+    // Riddi 本地化：telemetry 发送永久关闭，任何已注入的端点都不会被请求（见文件顶部常量）。
+    if (RIDDI_TELEMETRY_REPORT_ENABLED === false) return;
     // 构建期未配置事件上报端点时不上报（见 docs/desktop/build-time-optional-capabilities.md）
     if (!REPORT_ENDPOINT) return;
     let marketingParams: OAuthLoginAttribution | null = null;

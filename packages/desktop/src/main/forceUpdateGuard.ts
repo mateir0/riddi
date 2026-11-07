@@ -10,6 +10,10 @@ import {
 import { requestForceAutoUpdate, type ForceAutoUpdateState } from "./autoUpdater.js";
 import { showForceUpdatePrompt } from "./forceUpdatePrompt.js";
 
+// Riddi 不接入 Z.ai 云端配置面：本文件自带的 /api/v1/client/configs 直连拉取永久关闭，
+// 强制升级永远不命中，启动也不会被远端配置阻塞（见 resolveDesktopForceUpdateRequirement）。
+export const RIDDI_REMOTE_CLIENT_CONFIG_ENABLED = false;
+
 const ZCODE_CLIENT_CONFIG_API_PATH = "/api/v1/client/configs";
 const FORCE_UPDATE_CONFIG_REQUEST_TIMEOUT_MS = 10_000;
 const FORCE_UPDATE_CONFIG_MAX_RESPONSE_BYTES = 1024 * 1024;
@@ -152,6 +156,9 @@ export async function resolveDesktopForceUpdateRequirement(options: {
   endpointOrigin?: string;
   fetchRemoteConfig?: () => Promise<unknown>;
 }): Promise<ForceUpdateRequirement | null> {
+  if (RIDDI_REMOTE_CLIENT_CONFIG_ENABLED === false) {
+    return null;
+  }
   const resolveFromConfig = (config: unknown) =>
     resolveForceUpdateRequirement({
       currentVersion: ZCODE_VERSION,

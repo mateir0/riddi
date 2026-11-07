@@ -10,6 +10,10 @@ import type { IClientConfigService } from "./clientConfig.js";
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
 
+// Riddi 不接入 Z.ai 云端配置面：/api/v1/client/configs 的远端拉取永久关闭，
+// 本服务只解析本地默认快照（与远端成功但未下发任何 key 时的形状一致）。
+export const RIDDI_REMOTE_CLIENT_CONFIG_ENABLED = false;
+
 interface RequestContext {
   endpointOrigin: string;
   appVersion: string;
@@ -65,6 +69,12 @@ export function createClientConfigService(dependencies: {
   return {
     async getSnapshot(options = {}) {
       const { forceRefresh } = clientConfigReadOptionsSchema.parse(options);
+      if (RIDDI_REMOTE_CLIENT_CONFIG_ENABLED === false) {
+        // 不发起任何网络请求；默认形状复用真实解析路径：
+        // pluginStoreOrder=null、uiPluginRecommendations=[]、zsrcUrl=null，
+        // 与调用方处理“远端未下发配置”时拿到的快照完全一致。
+        return parseClientConfigSnapshot({ code: 0, data: { configs: {} } });
+      }
       const context = await dependencies.resolveRequestContext();
       const url = new URL(
         "/api/v1/client/configs",

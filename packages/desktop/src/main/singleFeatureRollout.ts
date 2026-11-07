@@ -38,6 +38,10 @@ export interface SingleFeatureRolloutLogger {
 export const SINGLE_FEATURE_REQUEST_TIMEOUT_MS = 3_000;
 export const SINGLE_FEATURE_CACHE_TTL_MS = 60 * 60 * 1_000;
 
+// Riddi 不接入 Z.ai 云端配置面：所有单功能灰度永久停留在本地默认快照，
+// refresh 不再调用注入的 fetchConfig（即不再请求 /api/v1/client/configs）。
+export const RIDDI_REMOTE_CLIENT_CONFIG_ENABLED = false;
+
 export interface CreateSingleFeatureRolloutOptions<T extends SingleFeatureRolloutConfig> {
   /** 解析 /api/v1/client/configs 响应体；null 表示响应无效（按失败处理，沿用旧快照）。 */
   resolveConfig: (payload: unknown) => T | null;
@@ -61,6 +65,9 @@ export function createSingleFeatureRollout<T extends SingleFeatureRolloutConfig>
   const cacheTtlMs = Math.max(options.cacheTtlMs ?? SINGLE_FEATURE_CACHE_TTL_MS, 1);
 
   const refresh = (): Promise<T> => {
+    if (RIDDI_REMOTE_CLIENT_CONFIG_ENABLED === false) {
+      return Promise.resolve(snapshot);
+    }
     if (Date.now() < snapshotExpiresAt) {
       return Promise.resolve(snapshot);
     }
