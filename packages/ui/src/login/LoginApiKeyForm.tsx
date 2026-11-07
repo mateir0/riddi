@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { isApiKeyAccess } from "@zcode/provider";
 import { Loader2Icon, TriangleAlertIcon } from "lucide-react";
-import { BIGMODEL_PROVIDER_ID, ZAI_PROVIDER_ID } from "@zcode/shared";
 import {
   TID_LOGIN_API_KEY_CANCEL_BUTTON,
   TID_LOGIN_API_KEY_CONTINUE_BUTTON,
@@ -27,7 +26,6 @@ import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
 import { useServices } from "@/hooks/useServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
-import { renderOAuthProviderIcon } from "@/lib/oauthProviderIcon.js";
 import {
   buildLoginApiKeyDefaultModelPreferenceFromSelection,
   buildLoginApiKeySkipSettings,
@@ -180,24 +178,6 @@ export function LoginApiKeyForm({ onCancel, onSaved, onSkipped }: LoginApiKeyFor
                   data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "nvidia")}
                 >
                   {intl.formatMessage({ id: "login.apiKey.provider.nvidia" })}
-                </SelectItem>
-                <SelectItem
-                  value="zai"
-                  className="rounded-md"
-                  data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "zai")}
-                >
-                  {renderOAuthProviderIcon(ZAI_PROVIDER_ID, "size-4")}
-                  {intl.formatMessage({ id: "login.apiKey.provider.zai" })}
-                </SelectItem>
-                <SelectItem
-                  value="bigmodel"
-                  className="rounded-md"
-                  data-testid={testId(TID_LOGIN_API_KEY_PROVIDER_ITEM, "bigmodel")}
-                >
-                  {renderOAuthProviderIcon(BIGMODEL_PROVIDER_ID, "size-4")}
-                  {intl.formatMessage({
-                    id: "login.apiKey.provider.bigmodel",
-                  })}
                 </SelectItem>
               </SelectContent>
             </Select>

@@ -1379,8 +1379,6 @@ const zhCN: Record<string, string> = {
   "login.apiKey.placeholder": "输入 API key",
   "login.apiKey.providerLabel": "API key 提供方",
   "login.apiKey.provider.nvidia": "NVIDIA NIM",
-  "login.apiKey.provider.zai": "Z.ai",
-  "login.apiKey.provider.bigmodel": "BigModel",
   "login.apiKey.getApiKey": "获取 API Key",
   "login.apiKey.cancel": "取消",
   "login.apiKey.continue": "继续",
