@@ -1296,6 +1296,10 @@ exceptions:
     rule: unmanaged-new-file
     paths: [packages/shared/src/clientConfig.ts]
     reason: Existing upstream public config parser gains one validated recommendation field; ownership and module boundaries remain unchanged, and adopting the shared package is outside this change.
+  - id: client-config-riddi-remote-gate-unmanaged-edit
+    rule: unmanaged-new-file
+    paths: [packages/services/src/client-config/clientConfigService.ts]
+    reason: Riddi fork gates the existing public client-config service to its local default snapshot (Z.ai remote config plane disabled); ownership and module boundaries remain unchanged, and adopting the services module is outside this change.
   - id: highspeed-fallback-snapshot-unmanaged-edit
     rule: unmanaged-new-file
     paths: [apps/zcode-cli/packages/core/src/runtime/methods/turn-execution-fallback.ts]
