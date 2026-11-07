@@ -35,7 +35,7 @@ interface ResolvedUserCommand {
 }
 
 function commandsRoot(source: CommandRootSource): string {
-  return join(resolveUserHomeDir(), source === "zcode" ? ".zcode" : ".agents", "commands");
+  return join(resolveUserHomeDir(), source === "zcode" ? ".riddi" : ".agents", "commands");
 }
 
 function hashContent(content: Uint8Array): string {
