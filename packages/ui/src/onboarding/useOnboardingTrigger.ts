@@ -64,14 +64,9 @@ export function useOnboardingTrigger(options: {
             },
             Math.max(0, deadline - Date.now()),
           );
-    // 登录认领先行：未登录时答的引导（null 条目）移交给当前登录用户，同一人不重复引导。
-    // 必须 await 完成后再判定，否则 shouldOnboard 读到认领前的文件会误判需要引导。
+    // Riddi 无账号登录：不再把匿名引导记录认领给登录用户，直接按本地记录判定。
     onboardingRecord
-      .claimAnonymousRecord()
-      .catch((cause: unknown) => {
-        logger.warn("[occupation-onboarding] 认领匿名引导记录失败", { error: String(cause) });
-      })
-      .then(() => onboardingRecord.shouldOnboard(loadDeviceMid()))
+      .shouldOnboard(loadDeviceMid())
       .then(
         (result) => {
           if (!cancelled) {
