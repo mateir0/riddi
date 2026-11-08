@@ -1239,26 +1239,6 @@ async function startCodingPlanTeamMockIfNeeded(specs: string[] = []) {
     "conversation-session-start-plan-independent.test.ts",
   );
   const offPeakTeam = isOffPeakTeamPlanSpec(specs);
-  if (offPeakTeam) {
-    // 通用产品 mock 会替换成个人假凭证，无法验证 Team。只在测试进程替代 HTTP 服务端。
-    const { startOffPeakMockGateway, createServiceLogger } = await import("@zcode/services/node");
-    offPeakTeamGateway = await startOffPeakMockGateway(
-      {
-        logger: createServiceLogger("e2e-offpeak-team", { isDebugEnabled: false }),
-        resolveUpstream: async () => {
-          throw new Error("Team E2E 不允许访问真实上游");
-        },
-      },
-      {
-        port: 0,
-        readyDelayMs: 0,
-        readyTtlMs: 600000,
-        activeMs: 600000,
-        scenario: "foreground-subagents",
-      },
-    );
-    process.env.ZCODE_OFFPEAK_MOCK_PORT = String(offPeakTeamGateway.port);
-  }
   let providerResponsive = startIndependent;
   let faultMode:
     | "none"

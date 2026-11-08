@@ -68,7 +68,13 @@ import type {
   ProviderSource,
 } from "@zcode/provider";
 import { completeNewModelSelection } from "@zcode/provider";
-import type { OffPeakClientConfig } from "#src/coding-plan-subscription/codingPlanSubscription.js";
+// Coding Plan 订阅模块已随商业经济删除；OffPeakClientConfig 只是宿主协议 handler 的
+// 可选灰度入参形状（注入方已不存在，handler 恒走未启用分支），就地保留类型定义。
+export interface OffPeakClientConfig {
+  readonly enabled: boolean;
+  readonly modelSelectionView: ModelSelectionView;
+  readonly codingPlanActive?: boolean;
+}
 import {
   subagentRuntimeConfigSchema,
   zcodeSubagentsReadRuntimeConfigParamsSchema,
@@ -400,7 +406,19 @@ import { TaskIndexRepo } from "#src/session/taskIndexRepo.js";
 import { ZCodeAgentMcpStatusModeUnsupportedError } from "#src/zcode-agent/zcodeAgentErrors.js";
 import { ZCodeAgentProcessManager } from "./zcodeAgentProcessManager.js";
 import type { ZCodeAgentProcessManagerOptions } from "./zcodeAgentProcessManager.js";
-import type { IOffPeakTaskService } from "#src/session/offPeakTask.js";
+// 闲时任务服务本体已删除；这里只保留宿主 handler 判空所需的最小端口形状，
+// resolveOffPeakTaskService 不再有注入方，相关协议 handler 恒回不可用。
+import type {
+  OffPeakCodingPlanSupport,
+  OffPeakTaskCreateResult,
+  ZCodeOffPeakTask,
+  ZCodeOffPeakTaskCreateParams,
+} from "@zcode/shared";
+export interface OffPeakTaskServicePort {
+  getCodingPlanSupport(): Promise<OffPeakCodingPlanSupport>;
+  createTask(params: ZCodeOffPeakTaskCreateParams): Promise<OffPeakTaskCreateResult>;
+  list(): Promise<ZCodeOffPeakTask[]>;
+}
 import {
   ZCodeProtocolRequestTimeoutError,
   type ZCodeProtocolClient,
@@ -1151,9 +1169,7 @@ interface CreateZCodeAgentServiceBaseOptions extends Omit<
   resolveDynamicWorkflowUserMode?: () => Promise<DynamicWorkflowMode | undefined>;
   /** 用户选择同步后交给装配层转发（Desktop Host 推给本窗口的远程 Host）；值取自本机设置。 */
   forwardDynamicWorkflowUserMode?: (mode: DynamicWorkflowMode | undefined) => void;
-  resolveOffPeakTaskService?: () =>
-    | Pick<IOffPeakTaskService, "createTask" | "list" | "getCodingPlanSupport">
-    | undefined;
+  resolveOffPeakTaskService?: () => OffPeakTaskServicePort | undefined;
   /**
    * browser-use 执行桥：把 agent 的 interaction/browserExecute 反向请求转发到 main
    * （WebContentsView+CDP）。desktop host 装配时注入；缺省（纯 CLI/远控无 main）则

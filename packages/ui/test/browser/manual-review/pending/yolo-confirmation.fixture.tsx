@@ -9,7 +9,6 @@ import { ConfirmDialogHost } from "@/ConfirmDialog.js";
 import { PermissionDialog } from "@/PermissionDialog.js";
 import { V4ComposerModeSwitch } from "@/v4/composer/V4ComposerModeControls.js";
 import { AutomationEditView } from "@/settings/AutomationEditView.js";
-import { OffPeakEditView } from "@/settings/OffPeakEditView.js";
 import { TabStoreProvider } from "@/store/TabStoreProvider.js";
 import { TooltipProvider } from "@/components/ui/tooltip.js";
 import "@/styles.css";
@@ -97,18 +96,7 @@ function Fixture() {
         />
       )}
       {surface === "offpeak" && (
-        <OffPeakEditView
-          key={target}
-          editing={null}
-          modelSelectionView={modelView}
-          defaultWorkspacePath="/example"
-          saving={false}
-          onBack={() => setResponse("back")}
-          onSubmit={async (value) => {
-            setResponse(JSON.stringify(value));
-            return true;
-          }}
-        />
+        <span className="text-ui-base text-foreground-subtle">offpeak surface 已下线</span>
       )}
       <output className="sr-only" data-testid="state">
         {JSON.stringify({ mode, planEnabled, commits, response })}

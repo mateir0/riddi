@@ -1,4 +1,3 @@
-import { useCodingPlanEntryGate } from "@/settings/CodingPlanEntryButton.js";
 /* eslint-disable max-lines -- Model Provider 详情页当前集中编排 Plan Card、API Key 表单和 OAuth 套餐态；后续稳定后再按 family/API/OAuth 拆分。 */
 import {
   BIGMODEL_PROVIDER_ID,
@@ -6,7 +5,6 @@ import {
   ZAI_PROVIDER_ID,
   type BuiltinModelProviderId,
   type ProviderFamilyConnectionSelectionSettings,
-  type StartPlanPreviewConfig,
   isStartPlanModelProviderId,
   isIndividualCodingPlanModelProviderId,
   resolveModelProviderFamilySpecByProviderId,
@@ -17,7 +15,6 @@ import {
   getProviderFormApiKeyManagementUrl,
   type ProviderSettingsFormProvider,
 } from "@/lib/providerSettingsFormTypes.js";
-import { ArrowRightIcon, AstroidIcon, UsersIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import {
@@ -50,25 +47,12 @@ import {
   ProviderFamilyHeader,
   ProviderFamilyPlanModeSwitch,
 } from "./ProviderFamilyModeHeader.js";
-import { resolveStartPlanEntitlementSummary } from "./StartPlanCard.js";
-import { useCodingPlanProducts } from "./useCodingPlanProducts.js";
-import { useEnterpriseCodingPlanProducts } from "./useEnterpriseCodingPlanProducts.js";
-import { useUsageEntitlement } from "@/hooks/useUsageEntitlement.js";
-import {
-  createCodingPlanFunnelContext,
-  resolveCodingPlanEntryPlanState,
-} from "@/lib/codingPlanFunnelTelemetry.js";
-import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
 import type { ProviderSettingsView } from "@zcode/services";
 import type { SavePersonalModelDraftInput } from "@zcode/provider";
 import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 import { projectProviderSettingsViewToFormProviders } from "@/lib/providerSettingsFormProjection.js";
 
-const START_PLAN_ENTRY_BANNER_CLASS =
-  "min-h-20 w-full overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_14%_12%,color-mix(in_srgb,var(--color-success)_24%,var(--color-background)_76%)_0%,color-mix(in_srgb,var(--color-success)_10%,var(--color-surface)_90%)_64%,var(--color-surface)_300%)] p-4 text-left transition-colors hover:border-border-hover";
-const PERSONAL_PLAN_ENTRY_BANNER_CLASS =
-  "min-h-20 w-full overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_14%_12%,color-mix(in_srgb,#4099ff_24%,var(--color-background)_76%)_0%,color-mix(in_srgb,#4099ff_10%,var(--color-surface)_90%)_64%,var(--color-surface)_300%)] p-4 text-left transition-colors hover:border-border-hover";
 const TEAM_PLAN_ENTRY_BANNER_CLASS =
   "min-h-20 w-full overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_14%_12%,color-mix(in_srgb,#0ea5e9_24%,var(--color-background)_76%)_0%,color-mix(in_srgb,#0ea5e9_10%,var(--color-surface)_90%)_64%,var(--color-surface)_300%)] p-4 text-left transition-colors hover:border-border-hover";
 const TEAM_PLAN_ADVANCED_ENTRY_BANNER_CLASS =
@@ -96,7 +80,16 @@ function hasTeamPlanContext(item: ModelProviderNavItem | null): item is Extract<
 
 export function resolveTeamScopedPlanNavItem(
   item: Extract<ModelProviderNavItem, { type: "codingPlan" | "teamPlan" }>,
-  entitlement: ReturnType<typeof useUsageEntitlement>,
+  entitlement: {
+    snapshot: {
+      unavailableReason?: string;
+      teamPlanUnavailableReason?: string;
+      subscription?: { details: unknown[] };
+      quota?: { limits: Extract<ModelProviderNavItem, { type: "teamPlan" }>["quotaLimits"] };
+    } | null;
+    loading: boolean;
+    error: string | null;
+  },
 ): Extract<ModelProviderNavItem, { type: "codingPlan" | "teamPlan" }> {
   if (item.type !== "teamPlan" || !hasTeamPlanContext(item)) {
     return item;
@@ -233,7 +226,7 @@ export function ModelProviderSectionDetail({
   connectionSelections,
   startPlanSubscriptionCount = 0,
   presetLoading,
-  codingPlanPurchaseTokenAuthenticatedByProviderId,
+  codingPlanPurchaseTokenAuthenticatedByProviderId: _codingPlanPurchaseTokenAuthenticatedByProviderId,
   codingPlanAuthError,
   presetSubscriptionProviderId,
   codingPlanStatusSyncProviderId,
@@ -305,7 +298,13 @@ export function ModelProviderSectionDetail({
   providerSettingsView?: ProviderSettingsView | null;
 }) {
   const { intl } = useZCodeIntl();
-  const { openCodingPlanUpgrade } = useCodingPlanUpgradeDialog();
+  // 购买/升级弹窗已下线：升级入口保留回调形状但不再打开任何商业弹窗。
+  const openCodingPlanUpgrade = (_params: {
+    providerId: string;
+    initialAudience?: unknown;
+    initialTeamPlanKey?: string;
+    funnelContext?: unknown;
+  }) => {};
   const loadingLabel = intl.formatMessage({ id: "common.loading" });
   const [upgradePlansVisibleProviderId, setUpgradePlansVisibleProviderId] =
     useState<BuiltinModelProviderId | null>(null);
@@ -351,20 +350,13 @@ export function ModelProviderSectionDetail({
         : null,
     [selectedNavItem],
   );
-  const selectedTeamPlanEntitlement = useUsageEntitlement({
-    enabled: Boolean(selectedTeamPlanContext),
-    includeSubscription: true,
-    preferredProviderId:
-      selectedNavItem?.type === "teamPlan" ? selectedNavItem.presetId : undefined,
-    accountAccess: selectedPlanAccess,
-    // 已购 Team Plan 时，个人 Coding Plan provider 可能因个人权益不可用被标记 disabled。
-    // Team 额度查询仍复用 Coding Plan quota 链路，并追加组织 / 项目上下文，不能在服务选择阶段被过滤。
-    allowDisabledPreferredProvider: selectedNavItem?.type === "teamPlan",
-    requirePreferredProvider: true,
-    allowEnvApiKey: false,
-    cacheKey: selectedNavItem?.key ?? undefined,
-    refreshOnMount: false,
-  });
+  // 权益查询服务已下线：团队套餐按无快照处理，导航项保持 Provider 配置原状。
+  const selectedTeamPlanEntitlement = {
+    snapshot: null,
+    loading: false,
+    error: null,
+    refresh: async (_options?: { silent?: boolean; force?: boolean; reason?: string }) => {},
+  };
   useEffect(() => {
     if (!selectedTeamPlanContext) {
       return;
@@ -446,10 +438,6 @@ export function ModelProviderSectionDetail({
       providerId: selectedNavItem.presetId,
       fallback: selectedNavItem.provider,
     });
-    // 购买/支付接口仍然依赖 OAuth 业务 token。
-    // 这里与卡片登录态分开传递，避免 Provider API Key 点亮状态后误判购买 token 可用。
-    const codingPlanPurchaseTokenAuthenticated =
-      codingPlanPurchaseTokenAuthenticatedByProviderId[selectedNavItem.presetId] === true;
     const codingPlanLoginPending = presetSubscriptionProviderId === selectedNavItem.presetId;
     const codingPlanStatusSyncPending = codingPlanStatusSyncProviderId === selectedNavItem.presetId;
     const codingPlanDisconnectPending = codingPlanDisconnectProviderId === selectedNavItem.presetId;
@@ -520,57 +508,6 @@ export function ModelProviderSectionDetail({
     const handleUpgradePlansVisibleChange = (visible: boolean) => {
       setUpgradePlansVisibleProviderId(visible ? selectedNavItem.presetId : null);
     };
-    const purchaseChoiceBannersVisible =
-      statusPanelViewState.displayStatus === "notPurchased" &&
-      (selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID ||
-        (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID &&
-          codingPlanPurchaseTokenAuthenticated));
-    const anonymousPurchaseChoiceBannersVisible =
-      (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID ||
-        selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID) &&
-      statusPanelViewState.displayStatus === "disconnected";
-    const handlePurchaseChoiceSelect = (
-      audience: PurchaseAudience,
-      options: { initialTeamPlanKey?: string; eventText?: string } = {},
-    ) => {
-      if (resolvePurchaseChoiceSelectionIntent(statusPanelViewState.displayStatus) === "login") {
-        // 未登录时个人/团队套餐必须先建立对应 provider 的 OAuth 身份。
-        // 直接打开购买面板会绕过账号态，导致后续价格/订单接口只能再报 oauth_required。
-        onCodingPlanLogin(
-          selectedNavItem.presetId,
-          selectedNavItem.oauthProviderId,
-          selectedNavItem.providerName,
-          selectedNavItem.status,
-        );
-        return;
-      }
-      const nextFunnelContext = createCodingPlanFunnelContext({
-        providerId: selectedNavItem.presetId,
-        upgradeSource:
-          audience === "team" ? "setting_team_plan_banner" : "setting_personal_plan_banner",
-        eventRegion: "app.setting",
-        eventText:
-          options.eventText ??
-          intl.formatMessage({
-            id:
-              audience === "team"
-                ? "settings.modelProvider.codingPlan.purchaseBanner.teamTitle"
-                : "settings.modelProvider.codingPlan.purchaseBanner.personalTitle",
-          }),
-        entryPlanState: resolveCodingPlanEntryPlanState({
-          displayStatus: statusPanelViewState.displayStatus,
-          providerId: selectedNavItem.presetId,
-          planLevel: selectedNavItem.planLevel,
-        }),
-        purchaseAudience: audience,
-      });
-      openCodingPlanUpgrade({
-        providerId: selectedNavItem.presetId,
-        initialAudience: audience,
-        initialTeamPlanKey: options.initialTeamPlanKey,
-        funnelContext: nextFunnelContext,
-      });
-    };
     const codingPlanFamilyHeader = (
       <ProviderFamilyHeader selectedNavItem={selectedNavItem} trailingAction={planModeSwitch} />
     );
@@ -589,16 +526,7 @@ export function ModelProviderSectionDetail({
         ),
     );
     const planSupplementalContent =
-      isStartPlanProvider && hasActivePaidPlan ? null : anonymousPurchaseChoiceBannersVisible ||
-        purchaseChoiceBannersVisible ? (
-        <CodingPlanPurchaseChoiceBanners
-          providerId={selectedNavItem.presetId}
-          soldOutVisible={codingPlanPurchaseTokenAuthenticated}
-          accountDisconnected={statusPanelViewState.displayStatus === "disconnected"}
-          onSelect={handlePurchaseChoiceSelect}
-          teamVisible={selectedNavItem.oauthProviderId !== ZAI_PROVIDER_ID}
-        />
-      ) : accessBanner ? (
+      isStartPlanProvider && hasActivePaidPlan ? null : accessBanner ? (
         <CodingPlanAccessBanner title={accessBanner.title} description={accessBanner.description} />
       ) : null;
 
@@ -670,7 +598,7 @@ export function ModelProviderSectionDetail({
               ? onRetryCodingPlan
               : undefined)
           }
-          onLogin={(options) => {
+          onLogin={(options: CodingPlanLoginOptions | undefined) => {
             return onCodingPlanLogin(
               selectedNavItem.presetId,
               selectedNavItem.oauthProviderId,
@@ -681,7 +609,10 @@ export function ModelProviderSectionDetail({
               options,
             );
           }}
-          onOpenUpgradePlans={(options) => {
+          onOpenUpgradePlans={(options: {
+            initialAudience: PurchaseAudience;
+            funnelContext?: unknown;
+          }) => {
             openCodingPlanUpgrade({
               providerId: selectedNavItem.presetId,
               initialAudience: options.initialAudience,
@@ -761,7 +692,7 @@ export function ModelProviderSectionDetail({
             mcpQuotaLimit={selectedNavItem.mcpQuotaLimit ?? null}
             authError={codingPlanAuthError}
             onOpenRegistration={onOpenBigModelRegistration}
-            onLogin={(options) => {
+            onLogin={(options: CodingPlanLoginOptions | undefined) => {
               return onCodingPlanLogin(
                 selectedNavItem.presetId,
                 selectedNavItem.oauthProviderId,
@@ -801,7 +732,10 @@ export function ModelProviderSectionDetail({
                 : undefined
             }
             disconnectLoading={codingPlanDisconnectProviderId === selectedNavItem.presetId}
-            onOpenUpgradePlans={(options) => {
+            onOpenUpgradePlans={(options: {
+              initialAudience: PurchaseAudience;
+              funnelContext?: unknown;
+            }) => {
               openCodingPlanUpgrade({
                 providerId: selectedNavItem.presetId,
                 initialAudience: options.initialAudience,
@@ -873,195 +807,6 @@ export function resolvePurchaseChoiceSelectionIntent(
   status: CodingPlanStatus,
 ): "login" | "purchase" {
   return status === "disconnected" ? "login" : "purchase";
-}
-
-function CodingPlanPurchaseChoiceBanners({
-  providerId,
-  startPlanPreview = null,
-  personalVisible = true,
-  teamVisible = true,
-  soldOutVisible = false,
-  accountDisconnected = false,
-  onSelect,
-  onSelectStartPlan,
-}: {
-  providerId: CodingPlanProviderId;
-  startPlanPreview?: StartPlanPreviewConfig | null;
-  personalVisible?: boolean;
-  teamVisible?: boolean;
-  soldOutVisible?: boolean;
-  accountDisconnected?: boolean;
-  onSelect: (
-    audience: PurchaseAudience,
-    options?: { initialTeamPlanKey?: string; eventText?: string },
-  ) => void;
-  onSelectStartPlan?: () => void;
-}) {
-  const entryGate = useCodingPlanEntryGate();
-  const { intl, locale } = useZCodeIntl();
-  const startPlanSummary = startPlanPreview
-    ? resolveStartPlanEntitlementSummary(startPlanPreview, intl, locale)
-    : null;
-  // Start Plan 只是免费入口，入口价格必须读取对应付费 Coding Plan 的商品源；
-  // 否则这里拿到免费 SKU/空列表后会隐藏对应付费 Coding Plan 的起售价。
-  const pricingProviderId = resolvePurchaseChoiceBannerProductsProviderId(providerId);
-  const staticProducts = useCodingPlanProducts(pricingProviderId, {
-    remotePreviewEnabled: false,
-  });
-  const enterpriseProducts = useEnterpriseCodingPlanProducts({
-    // 未登录也必须读取静态团队目录；售罄可见性不能充当目录加载开关。
-    enabled:
-      teamVisible && pricingProviderId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    authenticated: soldOutVisible,
-    staticOnly: !soldOutVisible,
-  });
-  const personalPrice = resolvePurchaseChoiceBannerPrice({
-    providerId: pricingProviderId,
-    audience: "personal",
-    products: staticProducts.snapshot?.productList ?? [],
-    soldOutVisible,
-  });
-  // 团队入口只展示一个横幅，价格来自已配置商品的最低价，不按档位拆成多个入口。
-  const teamPrice = resolveEnterprisePurchaseChoiceBannerPrice({
-    key: "team",
-    title: "",
-    products: enterpriseProducts.error
-      ? []
-      : (enterpriseProducts.snapshot?.productList ?? []).filter((product) =>
-          enterpriseProducts.snapshot?.staticProductIds?.includes(product.productId),
-        ),
-  });
-  const startPlanTitle = resolveStartPlanPurchaseChoiceBannerTitle({
-    fallbackTitle: intl.formatMessage({
-      id: "settings.modelProvider.codingPlan.purchaseBanner.startPlanTitle",
-    }),
-    locale,
-    remoteTitle: startPlanPreview?.name,
-  });
-  const bannerItems = [
-    ...(startPlanPreview && startPlanSummary
-      ? [
-          {
-            key: "startPlan" as const,
-            label: startPlanTitle,
-            description: startPlanSummary.detailsDescription,
-            metric: startPlanSummary.grantUnitsLabel,
-            metricUnit: startPlanSummary.unitLabel,
-            priceState: null,
-            className: START_PLAN_ENTRY_BANNER_CLASS,
-            Icon: AstroidIcon,
-            iconClassName: "text-success",
-            onClick: onSelectStartPlan,
-          },
-        ]
-      : []),
-    ...(personalVisible && personalPrice !== null
-      ? [
-          {
-            key: "personal" as const,
-            label: intl.formatMessage({
-              id: "settings.modelProvider.codingPlan.purchaseBanner.personalTitle",
-            }),
-            description: intl.formatMessage({
-              id: "settings.modelProvider.codingPlan.purchaseBanner.personalDescription",
-            }),
-            metric: null,
-            metricUnit: null,
-            priceState: personalPrice,
-            className: PERSONAL_PLAN_ENTRY_BANNER_CLASS,
-            Icon: AstroidIcon,
-            iconClassName: "text-[#4099ff]",
-            onClick: () => onSelect("personal"),
-          },
-        ]
-      : []),
-    // 历史订阅记录不决定购买入口可见性；团队 banner 沿用静态目录价格。
-    ...(teamVisible && teamPrice !== null
-      ? [
-          {
-            key: "team" as const,
-            label: intl.formatMessage({
-              id: "settings.modelProvider.codingPlan.purchaseBanner.teamTitle",
-            }),
-            description: intl.formatMessage({
-              id: "settings.modelProvider.codingPlan.purchaseBanner.teamDescription",
-            }),
-            metric: null,
-            metricUnit: null,
-            priceState: teamPrice,
-            className: TEAM_PLAN_ENTRY_BANNER_CLASS,
-            Icon: UsersIcon,
-            iconClassName: "text-warning",
-            onClick: () => onSelect("team"),
-          },
-        ]
-      : []),
-  ];
-  return (
-    <div className="space-y-3">
-      {bannerItems.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className={item.className}
-          disabled={
-            !accountDisconnected && item.key !== "startPlan" && entryGate.status === "loading"
-          }
-          onClick={() => {
-            if (!accountDisconnected && item.key !== "startPlan" && entryGate.status !== "ready") {
-              entryGate.retry?.();
-              return;
-            }
-            item.onClick?.();
-          }}
-        >
-          <span className="flex min-w-0 items-start gap-3">
-            <item.Icon className={`mt-1 size-4 shrink-0 ${item.iconClassName}`} />
-            <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="text-ui-lg font-medium leading-6 text-foreground">
-                  {!accountDisconnected && item.key !== "startPlan"
-                    ? (entryGate.label ?? item.label)
-                    : item.label}
-                </span>
-              </span>
-              {item.metric ? (
-                <span className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="text-2xl font-bold leading-none text-foreground">
-                    {item.metric}
-                  </span>
-                  {item.metricUnit ? (
-                    <span className="text-ui-base font-medium text-foreground-subtle">
-                      {item.metricUnit}
-                    </span>
-                  ) : null}
-                </span>
-              ) : null}
-              {item.priceState?.kind === "price" ? (
-                <PurchaseChoiceBannerPrice
-                  price={item.priceState.price}
-                  currency={item.priceState.currency}
-                  locale={locale}
-                />
-              ) : item.priceState?.kind === "soldOut" ? (
-                <span className="mt-1 block text-lg font-semibold leading-6 text-foreground">
-                  {intl.formatMessage({
-                    id: "settings.modelProvider.codingPlan.purchaseBanner.temporarilySoldOut",
-                  })}
-                </span>
-              ) : null}
-              <span className="mt-0.5 block text-ui-base leading-5 text-foreground-subtle">
-                {item.description}
-              </span>
-            </span>
-            <span className="flex h-6 shrink-0 items-center">
-              <ArrowRightIcon className="size-4 text-foreground-subtle" />
-            </span>
-          </span>
-        </button>
-      ))}
-    </div>
-  );
 }
 
 export function resolveEnterpriseTeamPlanBannerClass(tierKey: string): string {

@@ -36,6 +36,7 @@ import {
   PRESET_SUBSCRIPTION_TIMEOUT_MS,
   BIGMODEL_REGISTRATION_URL,
   type CodingPlanStatus,
+  type CodingPlanEntitlementState,
   type ModelProviderNavGroup,
 } from "./model-provider-section/constants.js";
 import { ModelProviderSectionDetail } from "./model-provider-section/Detail.js";
@@ -54,10 +55,6 @@ import {
   refreshModelProviderSection,
   refreshProviderPanelAfterAuthChange as refreshModelProviderPanelAfterAuthChange,
 } from "./model-provider-section/modelProviderActions.js";
-import {
-  useCodingPlanAccessRefresh,
-  useCodingPlanEntitlements,
-} from "./model-provider-section/useCodingPlanEntitlements.js";
 import { sortModelProvidersForDisplay } from "@/lib/modelProviderOrdering.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import { resolveLogoutProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
@@ -66,7 +63,6 @@ import {
   consumePendingSettingsModelProviderTarget,
   type SettingsModelProviderTarget,
 } from "@/lib/settingsNavigation.js";
-import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
 
 export {
   fuzzyMatch,
@@ -396,44 +392,16 @@ export function ModelProviderSection({
     error: sharedSettingsError,
     update: updateSharedSettings,
   } = useSettings();
-  const authenticatedEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan
-      ] === true,
-    authenticated: true,
-    family: "bigmodel",
-  });
-  // zai 与 bigmodel Team Plan 对称化。原仅 bigmodel 调 hook，
-  // zai 团队订阅永远拉不到、也无法展示对应团队。
-  // zai 独立调 hook（zai family 走 zai provider），下游合并两 family 的订阅产品。
-  const authenticatedZaiEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan
-      ] === true,
-    authenticated: true,
-    family: "zai",
-  });
-  const refreshAuthenticatedEnterpriseProducts = useCallback(async () => {
-    await Promise.all([
-      authenticatedEnterpriseProducts.refresh(),
-      authenticatedZaiEnterpriseProducts.refresh(),
-    ]);
-  }, [authenticatedEnterpriseProducts, authenticatedZaiEnterpriseProducts]);
-  const subscribedTeamProducts = useMemo(
-    () => [
-      ...(authenticatedEnterpriseProducts.snapshot?.productList.filter(
-        (product) => product.subscribed === true,
-      ) ?? []),
-      ...(authenticatedZaiEnterpriseProducts.snapshot?.productList.filter(
-        (product) => product.subscribed === true,
-      ) ?? []),
-    ],
-    [
-      authenticatedEnterpriseProducts.snapshot?.productList,
-      authenticatedZaiEnterpriseProducts.snapshot?.productList,
-    ],
+  // Coding Plan/Start Plan 商业查询已下线：企业订阅与权益快照恒为空，
+  // 刷新函数保留空实现以维持调用方形状，不再发起任何商业请求。
+  const subscribedTeamProducts: never[] = useMemo(() => [], []);
+  const codingPlanEntitlements: Partial<Record<string, CodingPlanEntitlementState>> = useMemo(
+    () => ({}),
+    [],
+  );
+  const refreshCodingPlanEntitlements = useCallback(
+    async (_options?: { force?: boolean; silent?: boolean; reason?: string }) => {},
+    [],
   );
   const connectionSelections = sharedSettings?.providerFamilyConnectionSelections ?? {};
   const familyConnectionSettingsFailed = sharedSettingsError !== null && sharedSettings === null;
@@ -453,12 +421,7 @@ export function ModelProviderSection({
   const effectiveProviderFamilyDomain =
     sharedSettings?.providerFamilyDomain ??
     resolveProviderFamilyDomainFromOAuthProvider(activeOAuthProvider);
-  const { entitlements: codingPlanEntitlements, refresh: refreshCodingPlanEntitlements } =
-    useCodingPlanEntitlements({
-      providerSettingsView,
-      connectionSelections: effectiveConnectionSelections,
-      suppressProviderFingerprintAutoRefresh: codingPlanStatusSyncProviderId !== null,
-    });
+  // Coding Plan 权益查询已下线：导航与详情页一律按无权益快照渲染。
   useEffect(() => {
     setPendingConnectionSelections((current) => {
       let next = current;
@@ -540,7 +503,8 @@ export function ModelProviderSection({
         refreshModelProviders: refresh,
         refreshCodingPlanEntitlements: () =>
           refreshCodingPlanEntitlements({ force: true, reason: refreshReason }),
-        refreshTeamPlanProducts: refreshAuthenticatedEnterpriseProducts,
+        // Coding Plan 商业查询已下线：团队产品刷新改为空操作。
+        refreshTeamPlanProducts: async () => {},
         refreshCodingPlanProducts,
         refreshPurchaseTokenState: refreshCodingPlanPurchaseTokenState,
         refreshPlanSnapshots,
@@ -548,7 +512,6 @@ export function ModelProviderSection({
     },
     [
       refresh,
-      refreshAuthenticatedEnterpriseProducts,
       refreshCodingPlanEntitlements,
       refreshCodingPlanProducts,
       refreshCodingPlanPurchaseTokenState,
@@ -701,16 +664,7 @@ export function ModelProviderSection({
       setSelectedNodeKey,
       intl,
     });
-  const selectedPlanAccessKey =
-    selectedNavItem?.type === "codingPlan" || selectedNavItem?.type === "teamPlan"
-      ? selectedNavItem.key
-      : null;
-  // 套餐卡每次被用户打开时按需校正；共享 freshness window 保证一分钟内切换返回
-  // 不会放大 quota 请求。权益展示更新不等于用户重新打开套餐。
-  useCodingPlanAccessRefresh({
-    refresh: refreshCodingPlanEntitlements,
-    selectedPlanKey: selectedPlanAccessKey,
-  });
+  // Coding Plan 按需校正已随权益查询一并下线。
 
   useEffect(() => {
     if (selectedNavItem?.type !== "codingPlan" && selectedNavItem?.type !== "teamPlan") {
@@ -1112,9 +1066,6 @@ export function ModelProviderSection({
       onRefresh={() => {
         void refreshModelProviderSection({
           refresh,
-          // 手动刷新设置页时也要同时刷新 Z.ai / BigModel Team Plan 快照；
-          // 原来只刷新 BigModel，Z.ai Team Plan 购买或订阅变化后会继续显示旧项目。
-          refreshTeamPlanProducts: refreshAuthenticatedEnterpriseProducts,
         });
         refreshCodingPlanEntitlements();
       }}

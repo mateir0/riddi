@@ -1515,3 +1515,10 @@ exceptions:
     paths:
       - packages/zcode-cua/src/**
     reason: The whole zcode-cua producer package (broker, native adapters, tools) entered the repo after the gate timestamp as pre-existing code moved from a separate repository; adopting its internal layers needs a dedicated CONTRACT pass (it has known internal cycles by design), not a mechanical split in this branch.
+  - id: riddi-commerce-strip-ui-unmanaged-files
+    rule: unmanaged-new-file
+    paths:
+      - packages/ui/src/components/marketing-touch/MarketingTouchProvider.tsx
+      - packages/ui/src/hooks/useDynamicWorkflowAvailability.ts
+      - packages/ui/src/request-security-edition/claim.ts
+    reason: Riddi 移除 Zhipu 商业面时，这三个既有 UI 文件分别去掉营销弹窗的商业接线、把动态工作流可用性改由本地 shared 解析、并保留请求安全声明入口；owner 与模块边界不变，接管整个 ui 包不在本次范围内。

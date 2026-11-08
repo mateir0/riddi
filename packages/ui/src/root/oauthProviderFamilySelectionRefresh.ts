@@ -1,23 +1,15 @@
 import type { IServiceAccessor } from "@zcode/services";
 import type { AccountProviderState } from "@zcode/provider";
-import type {
-  OAuthProviderId,
-  UsageEntitlementSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
-} from "@zcode/shared";
+import type { OAuthProviderId } from "@zcode/shared";
 import {
   getModelProviderFamilySpec,
   resolveProviderFamilyDomainFromOAuthProvider,
 } from "@zcode/shared";
 import { logger } from "@/logger.js";
-import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 import {
   type ModelProviderFamilyConnectionSelection,
   resolveAutomaticModelProviderFamilyConnectionSelection,
 } from "@/lib/modelProviderFamilyConnectionSelection.js";
-
-import { getEnterprisePricingProductsOrEmpty } from "@/root/oauthTeamPricing.js";
 
 function resolveModelProviderFamilySpecFromOAuth(
   provider: OAuthProviderId | string,
@@ -26,35 +18,11 @@ function resolveModelProviderFamilySpecFromOAuth(
   return family ? getModelProviderFamilySpec(family) : null;
 }
 
-async function getUsageEntitlementSnapshotOrNull(params: {
-  services: IServiceAccessor;
-  providerId: string;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
-}): Promise<UsageEntitlementSnapshot | null> {
-  try {
-    return await params.services.usageStatsService.getEntitlementSnapshot({
-      includeSubscription: true,
-      preferredProviderId: params.providerId,
-      accountAccess: params.accountAccess,
-      allowDisabledPreferredProvider: true,
-      requirePreferredProvider: true,
-      allowEnvApiKey: false,
-    });
-  } catch (error) {
-    logger.warn("[Root] 刷新登录后权益快照失败", {
-      providerId: params.providerId,
-      error,
-    });
-    return null;
-  }
-}
-
 async function refreshAccountProviderAccesses(params: {
   services: IServiceAccessor;
   providerIds: readonly string[];
   reason: string;
 }): Promise<{
-  accesses: ReadonlyMap<string, ZCodeProviderAccountAccess | ZCodeAccountAccess>;
   states: ReadonlyMap<string, AccountProviderState>;
   refreshed: boolean;
   error?: unknown;
@@ -63,23 +31,8 @@ async function refreshAccountProviderAccesses(params: {
 
   try {
     const view = await providerSettingsService.refresh(params.reason);
-    const accesses = new Map(
-      params.providerIds.flatMap((providerId) => {
-        const resolved = resolveAccountProviderInspectionAccess(view, providerId);
-        if (!resolved) return [];
-        const access = resolved.access;
-        // 登录/启动检查属于套餐只读查询。静态 mode 会经执行期 current 解析，
-        // 把未选中或 pending 的 Start 当作当前 Coding 查询；此处必须明确查询套餐自身。
-        const query: ZCodeProviderAccountAccess | ZCodeAccountAccess =
-          access.mode === "start-plan" || access.mode === "individual-coding-plan"
-            ? { type: "zhipu-account", family: access.accountType, planKind: access.mode }
-            : access;
-        return [[providerId, query] as const];
-      }),
-    );
     return {
       refreshed: true,
-      accesses,
       states: new Map(
         view.providers.flatMap((provider) =>
           provider.accountState ? [[provider.providerId, provider.accountState] as const] : [],
@@ -91,7 +44,7 @@ async function refreshAccountProviderAccesses(params: {
       providerIds: params.providerIds,
       error,
     });
-    return { refreshed: false, accesses: new Map(), states: new Map(), error };
+    return { refreshed: false, states: new Map(), error };
   }
 }
 
@@ -121,7 +74,7 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
     familySpec.startPlanProviderId,
     familySpec.teamCodingPlanProviderId,
   ];
-  const { accesses, states, refreshed } = await refreshAccountProviderAccesses({
+  const { states, refreshed } = await refreshAccountProviderAccesses({
     services: params.services,
     providerIds: codingPlanProviderIds,
     reason: "oauth-login-entitlement",
@@ -134,27 +87,14 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
   )
     return null;
 
-  const [codingPlanEntitlement, startPlanEntitlement, teamProducts] = await Promise.all([
-    getUsageEntitlementSnapshotOrNull({
-      services: params.services,
-      providerId: codingPlanProviderId,
-      accountAccess: accesses.get(codingPlanProviderId),
-    }),
-    getUsageEntitlementSnapshotOrNull({
-      services: params.services,
-      providerId: startPlanProviderId,
-      accountAccess: accesses.get(startPlanProviderId),
-    }),
-    getEnterprisePricingProductsOrEmpty(params.services, domain),
-  ]);
   // 旧 Start 连接只保留读取，不以权益失效为由删除或自动替换成付费连接。
   const savedSelection = currentSettings.providerFamilyConnectionSelections?.[domain];
   if (savedSelection?.kind === "start-plan") return savedSelection;
   const selection = resolveAutomaticModelProviderFamilyConnectionSelection({
     providerFamilyDomain: domain,
-    codingPlanEntitlement,
-    startPlanEntitlement,
-    teamProducts,
+    codingPlanEntitlement: null,
+    startPlanEntitlement: null,
+    teamProducts: [],
     codingPlanAvailable: states.has(codingPlanProviderId)
       ? states.get(codingPlanProviderId)!.availability === "available"
       : undefined,
