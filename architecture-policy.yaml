@@ -1429,3 +1429,7 @@ exceptions:
       - apps/zcode-cli/packages/adapters/src/model/account-request-retry.ts
       - apps/zcode-cli/packages/cli/src/tui-prompt-handler-runtime.ts
     reason: Riddi 完成 OAuth / 账号 Provider / 远控删除时，这三个 UI 叶子文件只保留与厂商无关的移动端布局与 Provider Family 纯数据/展示规则，两个 CLI 文件是既有适配层与 TUI runtime 的非账号路径（项目令牌刷新只在删除后的恢复链内保留）；owner、依赖方向与模块边界不变，接管整个 ui 或 zcode-cli 包不在本次范围内。
+  - id: shared-data-base-dir-unmanaged-new-file
+    rule: unmanaged-new-file
+    paths: [packages/shared/src/data-base-dir.ts]
+    reason: 共享的数据根目录解析工具（优先级：显式参数 > ZCODE_DATA_BASE_DIR > HOME/USERPROFILE > homedir()），被 skills/roots.ts 与 commands/roots.ts 复用，避免重复逻辑；shared 仍为 unmanaged，采用精确路径准入，不接管整个 shared 目录。

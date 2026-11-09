@@ -81,6 +81,7 @@ export {
   normalizeZCodeEnv,
   normalizeZCodeProductFlavor,
 } from "./env.js";
+export * from "./data-base-dir.js";
 export * from "./errors.js";
 export {
   USER_INSTRUCTIONS_MAX_BYTES,

@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { CustomCommandRoot, CustomCommandSource } from "@zcode/contracts";
+import { resolveDataBaseDir } from "@zcode/shared";
 
 const COMMANDS_DIR = "commands";
 const GIT_MARKER = ".git";
@@ -26,7 +27,7 @@ export async function resolveDefaultCustomCommandRoots(
   const resolvedWorkingDirectory = resolve(workingDirectory);
   const roots: CustomCommandRoot[] = [];
   const includeZcode = options.includeZcodeCommands ?? true;
-  const home = options.homeDirectory ?? homedir();
+  const home = options.homeDirectory ?? resolveDataBaseDir({ explicitDir: options.homeDirectory });
   let priority = 0;
   const nextPriority = () => {
     priority += PRIORITY_STEP;
