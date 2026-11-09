@@ -1,10 +1,7 @@
 import {
-  BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
   isCodingPlanModelProviderId,
   isZaiCodingPlanProviderId,
-  type OAuthProviderId,
-  ZAI_PROVIDER_ID,
 } from "@zcode/shared";
 import { type CodingPlanProviderId } from "@/settings/model-provider-section/constants.js";
 
@@ -24,22 +21,22 @@ export async function readCodingPlanPurchaseTokenState(credentialService: {
 }) {
   const [activeProvider, zaiToken, bigmodelToken] = await Promise.all([
     credentialService.load("oauth:active_provider"),
-    credentialService.load(`oauth:${ZAI_PROVIDER_ID}:access_token`),
-    credentialService.load(`oauth:${BIGMODEL_PROVIDER_ID}:access_token`),
+    credentialService.load(`oauth:${"zai"}:access_token`),
+    credentialService.load(`oauth:${"bigmodel"}:access_token`),
   ]);
   const active =
-    activeProvider === ZAI_PROVIDER_ID || activeProvider === BIGMODEL_PROVIDER_ID
+    activeProvider === "zai" || activeProvider === "bigmodel"
       ? activeProvider
       : null;
   return {
     [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]:
-      active === ZAI_PROVIDER_ID && Boolean(zaiToken?.trim()),
+      active === "zai" && Boolean(zaiToken?.trim()),
     [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]:
-      active === ZAI_PROVIDER_ID && Boolean(zaiToken?.trim()),
+      active === "zai" && Boolean(zaiToken?.trim()),
     [BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan]:
-      active === BIGMODEL_PROVIDER_ID && Boolean(bigmodelToken?.trim()),
+      active === "bigmodel" && Boolean(bigmodelToken?.trim()),
     [BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan]:
-      active === BIGMODEL_PROVIDER_ID && Boolean(bigmodelToken?.trim()),
+      active === "bigmodel" && Boolean(bigmodelToken?.trim()),
   } satisfies Partial<Record<CodingPlanProviderId, boolean>>;
 }
 
@@ -58,8 +55,8 @@ export function isCodingPlanProviderId(
   return Boolean(providerId);
 }
 
-export function resolveCodingPlanOAuthProviderId(
+export function resolveCodingPlanstring(
   providerId: CodingPlanProviderId,
-): OAuthProviderId {
-  return isZaiCodingPlanProviderId(providerId) ? ZAI_PROVIDER_ID : BIGMODEL_PROVIDER_ID;
+): string {
+  return isZaiCodingPlanProviderId(providerId) ? "zai" : "bigmodel";
 }

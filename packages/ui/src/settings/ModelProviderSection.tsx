@@ -14,7 +14,6 @@ import {
   type ProviderFamilyConnectionSelection,
   type ProviderFamilyConnectionSelectionSettings,
   type ProviderFamilyDomain,
-  type OAuthProviderId,
 } from "@zcode/shared";
 import {
   resolveModelProviderFamilyIdByProviderId,
@@ -74,8 +73,8 @@ export function resolveCodingPlanProviderSyncAttemptKey({
   oauthProviderId,
   providerId,
 }: {
-  activeOAuthProvider: OAuthProviderId | null;
-  oauthProviderId: OAuthProviderId;
+  activeOAuthProvider: string | null;
+  oauthProviderId: string;
   providerId: BuiltinModelProviderId;
 }): string | null {
   if (activeOAuthProvider !== oauthProviderId) {
@@ -141,7 +140,7 @@ function shouldRefreshCodingPlanEntitlementsAfterSave(
 
 function resolveBuiltinPresetOAuthProvider(
   _presetId: BuiltinModelProviderId,
-): OAuthProviderId | null {
+): string | null {
   // 0.9.1：Z.ai / BigModel OAuth 账号链路已删除，内置预设不再映射任何 OAuth Provider。
   return null;
 }
@@ -347,7 +346,7 @@ export function ModelProviderSection({
     codingPlanPurchaseTokenAuthenticatedByProviderId,
     setCodingPlanPurchaseTokenAuthenticatedByProviderId,
   ] = useState<Partial<Record<BuiltinModelProviderId, boolean>>>({});
-  const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProviderId | null>(null);
+  const [activeOAuthProvider, setActiveOAuthProvider] = useState<string | null>(null);
   const [pendingConnectionSelections, setPendingConnectionSelections] =
     useState<ProviderFamilyConnectionSelectionSettings>({});
   const presetSubscriptionCompletionProviderIdRef = useRef<BuiltinModelProviderId | null>(null);
@@ -663,7 +662,7 @@ export function ModelProviderSection({
   const handleCodingPlanLogin = useCallback(
     (
       presetId: BuiltinModelProviderId,
-      providerId: OAuthProviderId,
+      providerId: string,
       providerName: string,
       status: CodingPlanStatus,
       options?: CodingPlanLoginOptions,
@@ -691,7 +690,7 @@ export function ModelProviderSection({
   );
 
   const handleCodingPlanDisconnect = useCallback(
-    async (presetId: BuiltinModelProviderId, providerId: OAuthProviderId, providerName: string) => {
+    async (presetId: BuiltinModelProviderId, providerId: string, providerName: string) => {
       // 0.9.1：Z.ai / BigModel 账号断连入口随账号链路整体删除；详情页也不再渲染解绑按钮。
       void presetId;
       void providerId;

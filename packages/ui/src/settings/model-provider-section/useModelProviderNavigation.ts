@@ -10,7 +10,6 @@ import type {
 import {
   BUILTIN_MODEL_PROVIDER_IDS,
   isStartPlanModelProviderId,
-  type OAuthProviderId,
 } from "@zcode/shared";
 import {
   resolveModelProviderFamilySpecByProviderId,
@@ -331,7 +330,7 @@ export function useModelProviderNavigation({
 }
 
 function shouldShowCodingPlanForProviderFamilyDomain(
-  oauthProviderId: OAuthProviderId,
+  oauthProviderId: string,
   providerFamilyDomain: ProviderFamilyDomain | null,
 ): boolean {
   if (!providerFamilyDomain) {

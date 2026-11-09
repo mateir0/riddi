@@ -7,7 +7,6 @@ import type {
   MigrateLegacyCommonMcpResult,
   SaveCliMcpToUserDirectoryRequest,
 } from "./index.js";
-import type { OAuthStateRegistration } from "./oauth.js";
 import type { AppSettings, Locale } from "./protocol.js";
 import type { StorageCleanRequest, StorageCleanResult, StorageUsageSnapshot } from "./storage.js";
 import type {
@@ -1042,7 +1041,7 @@ export interface PlatformChannelMap {
     response: void;
   };
   [PlatformChannels.OAuthRegisterState]: {
-    request: OAuthStateRegistration;
+    request: { state: string; provider?: string };
     response: void;
   };
   [PlatformChannels.OAuthCallback]: {

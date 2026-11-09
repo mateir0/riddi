@@ -2,15 +2,12 @@ import { isStartPlanModelProviderId } from "@zcode/shared";
 import type { IUsageStatsService } from "@zcode/services";
 import type {
   UsageEntitlementSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
 } from "@zcode/shared";
 
 export interface UsageEntitlementRequestOptions {
   invalidateBalanceCache?: boolean;
   includeSubscription: boolean;
   preferredProviderId?: string;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
   allowDisabledPreferredProvider: boolean;
   requirePreferredProvider: boolean;
   allowEnvApiKey?: boolean;
@@ -98,7 +95,6 @@ export function buildEntitlementRequestKey(options: UsageEntitlementRequestOptio
     ...(options.invalidateBalanceCache ? { invalidateBalanceCache: true } : {}),
     includeSubscription: options.includeSubscription,
     preferredProviderId: options.preferredProviderId ?? "",
-    accountAccess: options.accountAccess ?? null,
     allowDisabledPreferredProvider: options.allowDisabledPreferredProvider,
     requirePreferredProvider: options.requirePreferredProvider,
     allowEnvApiKey: options.allowEnvApiKey ?? null,

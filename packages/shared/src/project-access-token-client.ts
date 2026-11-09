@@ -9,7 +9,7 @@ import {
   ProjectAccessTokenTransientError,
 } from "./project-access-token.js";
 import { ZCODE_VERSION } from "./version.js";
-import { isCredentialDecryptError } from "./oauth.js";
+import { isCredentialDecryptError } from "./credential-decrypt-error.js";
 
 const DEFAULT_ORGANIZATION_NAME = "默认机构";
 const DEFAULT_PROJECT_NAME = "默认项目";

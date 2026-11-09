@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { type BuiltinModelProviderId, type OAuthProviderId } from "@zcode/shared";
+import { type BuiltinModelProviderId } from "@zcode/shared";
 import { PackageIcon } from "lucide-react";
 import { ProviderLogo } from "./ProviderLogo.js";
 import {
@@ -20,9 +20,9 @@ export function createCustomProviderNodeKey(id: string): string {
   return `custom:${id}`;
 }
 
-export function resolveOAuthProviderIdByPreset(
+export function resolvestringByPreset(
   presetId: BuiltinModelProviderId,
-): OAuthProviderId | null {
+): string | null {
   return (
     PRESET_PROVIDER_SPEC_BY_ID.get(presetId)?.oauthProviderId ??
     CODING_PLAN_PROVIDER_SPECS.find((spec) => spec.id === presetId)?.oauthProviderId ??

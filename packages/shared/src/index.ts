@@ -131,7 +131,7 @@ export interface ICredentialStore {
 export * from "./test-ids-workflow.js";
 export * from "./channels.js";
 export * from "./storage.js";
-export * from "./oauth.js";
+export * from "./credential-decrypt-error.js";
 export * from "./desktopMenu.js";
 export * from "./feedback.js";
 export * from "./e2e-test-bridge.js";
@@ -330,7 +330,6 @@ export * from "./workspaceSessionRestore.js";
 export * from "./skill-scan-policy.js";
 export * from "./browser-use/index.js";
 
-export * from "./coding-plan-reset.js";
 export * from "./highspeed.js";
 export {
   parseSubagentMarkdownSelection,

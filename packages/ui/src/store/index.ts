@@ -6,7 +6,7 @@
  */
 import { create } from "zustand";
 import type { IBroadcastService, BroadcastMessage } from "@zcode/services";
-import type { OAuthProviderId, UserInfo } from "@zcode/shared";
+import type { UserInfo } from "@zcode/shared";
 import type { CodePreviewSettings } from "@/lib/codePreviewSettings.js";
 import { DEFAULT_CODE_PREVIEW_SETTINGS } from "@/lib/codePreviewSettings.js";
 import { readSafeLocalStorage, writeSafeLocalStorage } from "@/lib/browserEnvironment.js";
@@ -48,7 +48,7 @@ export type LoginEntryAttemptStatus =
 
 export interface LoginEntryAttempt {
   id: number;
-  providerId?: OAuthProviderId;
+  providerId?: string;
   purpose?: LoginEntryPurpose;
   status: LoginEntryAttemptStatus;
 }
@@ -163,20 +163,20 @@ export interface ZCodeState {
   oauthPollingActive: boolean;
   setOAuthPollingActive: (active: boolean) => void;
   oauthSuccessSeq: number;
-  lastOAuthSuccessProvider: OAuthProviderId | null;
-  markOAuthSuccess: (provider?: OAuthProviderId) => void;
+  lastOAuthSuccessProvider: string | null;
+  markOAuthSuccess: (provider?: string) => void;
   apiKeyLoginSuccessSeq: number;
   lastApiKeyLoginModel: string | null;
   markApiKeyLoginSuccess: (preferredModel?: string | null) => void;
   /** 请求打开统一登录入口，可携带需要自动发起登录/连接的 provider */
   loginEntryRequest: {
     id: number;
-    providerId?: OAuthProviderId;
+    providerId?: string;
     purpose?: LoginEntryPurpose;
   } | null;
   /** 当前统一登录尝试；购买等后续动作通过 id 只续接自己发起的 OAuth。 */
   loginEntryAttempt: LoginEntryAttempt | null;
-  requestLoginEntry: (providerId?: OAuthProviderId, purpose?: LoginEntryPurpose) => number;
+  requestLoginEntry: (providerId?: string, purpose?: LoginEntryPurpose) => number;
   clearLoginEntryRequest: (requestId?: number) => void;
   markLoginEntryAttemptStatus: (
     requestId: number,
@@ -352,7 +352,7 @@ export function createZCodeStore(
     setOAuthPollingActive: (active: boolean) => set({ oauthPollingActive: active }),
     oauthSuccessSeq: 0,
     lastOAuthSuccessProvider: null,
-    markOAuthSuccess: (provider?: OAuthProviderId) =>
+    markOAuthSuccess: (provider?: string) =>
       set((state) => ({
         oauthSuccessSeq: state.oauthSuccessSeq + 1,
         lastOAuthSuccessProvider: provider ?? state.lastOAuthSuccessProvider,
@@ -366,7 +366,7 @@ export function createZCodeStore(
       })),
     loginEntryRequest: null,
     loginEntryAttempt: null,
-    requestLoginEntry: (providerId?: OAuthProviderId, purpose?: LoginEntryPurpose) => {
+    requestLoginEntry: (providerId?: string, purpose?: LoginEntryPurpose) => {
       const id = ++loginEntryRequestSeq;
       const attempt: LoginEntryAttempt = {
         id,

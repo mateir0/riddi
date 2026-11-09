@@ -13,7 +13,6 @@ import type {
   MigrateLegacyCommonMcpResult,
   SaveCliMcpToUserDirectoryRequest,
 } from "./mcp.js";
-import type { OAuthStateRegistration } from "./oauth.js";
 import type { AppSettings, Locale } from "./protocol.js";
 import type {
   ArmsCustomEventPayload,
@@ -907,7 +906,7 @@ export interface IPlatformService {
   startCuaHelperPermissionDrag?(): void;
 
   /** 上报 OAuth state 给 main process，用于 deep link 路由 */
-  registerOAuthState(payload: OAuthStateRegistration): void;
+  registerOAuthState(payload: { state: string; provider?: string }): void;
 
   /**
    * 注册 OAuth deep link 回调监听

@@ -5,8 +5,6 @@ import { app, BrowserWindow, dialog } from "electron";
 import type { WebContents } from "electron";
 import {
   type Locale,
-  type OAuthProviderId,
-  type OAuthStateRegistration,
   PlatformChannels,
 } from "@zcode/shared";
 import {
@@ -32,6 +30,14 @@ export interface ExternalWorkspaceOpenDialogCopy {
   title: string;
   message: string;
   detail: (path: string) => string;
+}
+
+/** Z.ai 去除后，OAuth provider 仅作为标识字符串使用。 */
+export type OAuthProviderId = string;
+
+interface OAuthStateRegistration {
+  state: string;
+  provider?: OAuthProviderId;
 }
 
 interface OAuthRouteTarget {

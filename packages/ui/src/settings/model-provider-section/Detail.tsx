@@ -6,7 +6,6 @@ import {
   isStartPlanModelProviderId,
   isIndividualCodingPlanModelProviderId,
   type ModelConnectivityResult,
-  type OAuthProviderId,
 } from "@zcode/shared";
 import { resolveModelProviderFamilySpecByProviderId } from "@/settings/model-provider-section/providerFamilySpec.js";
 import {
@@ -278,14 +277,14 @@ export function ModelProviderSectionDetail({
   onRetryCodingPlan?: () => void | Promise<void>;
   onCodingPlanLogin: (
     presetId: BuiltinModelProviderId,
-    providerId: OAuthProviderId,
+    providerId: string,
     providerName: string,
     status: CodingPlanStatus,
     options?: CodingPlanLoginOptions,
   ) => number | void;
   onCodingPlanDisconnect: (
     presetId: BuiltinModelProviderId,
-    providerId: OAuthProviderId,
+    providerId: string,
     providerName: string,
   ) => void;
   onOpenApiKeyUrl: (url: string) => void;

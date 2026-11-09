@@ -9,12 +9,12 @@
  *
  * 调用方遇到 null 时一律走「无账号 / 无套餐」的普通 API Key 分支。
  */
-import type { BuiltinModelProviderId, OAuthProviderId, ProviderFamilyDomain } from "@zcode/shared";
+import type { BuiltinModelProviderId, ProviderFamilyDomain } from "@zcode/shared";
 
 export interface ProviderFamilySpecShape {
   id: ProviderFamilyDomain;
   label: string;
-  oauthProviderId: OAuthProviderId;
+  oauthProviderId: string;
   startPlanProviderId: BuiltinModelProviderId;
   individualCodingPlanProviderId: BuiltinModelProviderId;
   teamCodingPlanProviderId: BuiltinModelProviderId;

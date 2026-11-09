@@ -1,7 +1,6 @@
 import {
   BUILTIN_MODEL_PROVIDER_IDS,
   createUuid,
-  type OAuthProviderId,
   type BuiltinModelProviderId,
   type UsageQuotaLimit,
   type UsageEntitlementSubscriptionDetail,
@@ -19,7 +18,7 @@ export const PRESET_SUBSCRIPTION_TIMEOUT_MS = 2 * 60 * 1000;
 export interface PresetProviderSpec {
   id: BuiltinModelProviderId;
   displayName: string;
-  oauthProviderId?: OAuthProviderId;
+  oauthProviderId?: string;
 }
 
 /**
@@ -52,7 +51,7 @@ export type TeamPlanAvailabilityReason = "not-allocated" | "expired" | "credenti
 
 interface CodingPlanProviderSpec {
   id: CodingPlanProviderId;
-  oauthProviderId: OAuthProviderId;
+  oauthProviderId: string;
   label: string;
   providerName: string;
   purchaseUrl?: string;
@@ -94,7 +93,7 @@ export type ModelProviderNavItem =
       key: string;
       type: "codingPlan";
       presetId: CodingPlanProviderId;
-      oauthProviderId: OAuthProviderId;
+      oauthProviderId: string;
       label: string;
       providerName: string;
       provider: ProviderSettingsFormProvider | null;
@@ -122,7 +121,7 @@ export type ModelProviderNavItem =
       key: string;
       type: "teamPlan";
       presetId: CodingPlanProviderId;
-      oauthProviderId: OAuthProviderId;
+      oauthProviderId: string;
       label: string;
       providerName: string;
       teamPlanName: string;
@@ -154,7 +153,7 @@ export type ModelProviderNavItem =
       type: "codingPlanLoading";
       label: string;
       providerName: string;
-      oauthProviderId?: OAuthProviderId;
+      oauthProviderId?: string;
     }
   | {
       key: string;
