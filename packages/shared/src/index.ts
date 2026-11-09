@@ -32,6 +32,7 @@ export type {
   RemoteTargetSnapshot,
   RemoteWorkspaceSessionEntry,
   PersistedWorkspaceSessionEntry,
+  UserInfo,
 } from "./protocol.js";
 export type { WorkspacePurpose } from "./workspacePurpose.js";
 export { DEFAULT_LOCALE } from "./protocol.js";
@@ -131,7 +132,6 @@ export interface ICredentialStore {
 export * from "./test-ids-workflow.js";
 export * from "./channels.js";
 export * from "./storage.js";
-export * from "./credential-decrypt-error.js";
 export * from "./desktopMenu.js";
 export * from "./feedback.js";
 export * from "./e2e-test-bridge.js";
@@ -363,6 +363,9 @@ export {
   ProjectAccessTokenHttpStatusError,
   ProjectAccessTokenTransientError,
   type ProjectAccessTokenRequestFailure,
+  CREDENTIAL_DECRYPT_ERROR_PREFIX,
+  CREDENTIAL_DECRYPT_ERROR_CODE,
+  isCredentialDecryptError,
 } from "./project-access-token.js";
 export {
   ProjectAccessTokenClient,

@@ -1,13 +1,12 @@
 import { readFile } from "node:fs/promises";
-import { ZAI_PROVIDER_ID } from "@zcode/shared";
 import { TID_OAUTH_LOGIN_BUTTON, testId } from "@zcode/shared/test-ids";
 import { clearAppData, getE2EAppDataPaths, waitForTestIdByDom } from "#e2e/helpers/desktop-app";
 
 const EXPIRED_SESSION_CREDENTIAL_KEYS = [
   "oauth:active_provider",
-  `oauth:${ZAI_PROVIDER_ID}:access_token`,
-  `oauth:${ZAI_PROVIDER_ID}:refresh_token`,
-  `oauth:${ZAI_PROVIDER_ID}:user_info`,
+  "oauth:zai:access_token",
+  "oauth:zai:refresh_token",
+  "oauth:zai:user_info",
   "zcodejwttoken",
 ] as const;
 
@@ -27,7 +26,7 @@ describe("ZCode JWT 过期后重新认证", () => {
     await waitForExpiredSessionCredentialsCleanup();
 
     await clickExpiredLoginAlertAction();
-    await waitForTestIdByDom(testId(TID_OAUTH_LOGIN_BUTTON, ZAI_PROVIDER_ID), {
+    await waitForTestIdByDom(testId(TID_OAUTH_LOGIN_BUTTON, "zai"), {
       timeout: 20000,
       timeoutMsg: "确认登录过期提示后没有展示 Z.ai 登录入口",
     });

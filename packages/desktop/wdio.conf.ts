@@ -124,8 +124,6 @@ import {
 import {
   ASK_USER_QUESTION_E2E_CLOCK_SCALE_ENV,
   BUILTIN_MODEL_PROVIDER_IDS,
-  BIGMODEL_PROVIDER_ID,
-  ZAI_PROVIDER_ID,
 } from "@zcode/shared";
 import {
   seedPersonalProviderConfig,
@@ -3436,7 +3434,7 @@ function seedE2EStartupState(specs: string[] = []) {
   const builtInSubagentModelOverridesSpec = isBuiltInSubagentModelSelectionOverridesSpec(specs);
   const providerReadinessColdStartFixture = usesProviderReadinessColdStartFixture(specs);
   const shouldUseBigmodelAuth = codingPlanTeamSpec || codingPlanUpgradeE2E;
-  const authProviderId = shouldUseBigmodelAuth ? BIGMODEL_PROVIDER_ID : E2E_AUTH_PROVIDER_ID;
+  const authProviderId = shouldUseBigmodelAuth ? "bigmodel" : E2E_AUTH_PROVIDER_ID;
   writeFileSync(
     E2E_APP_SETTINGS_FILE,
     JSON.stringify(
@@ -3600,14 +3598,14 @@ async function runGitReviewEntryCommand(cwd: string, args: string[]) {
 function createCorruptOAuthCredentialSeed(authProviderId: string): Record<string, string> {
   const corruptEncryptedValue = "enc:v1:bad.bad.bad";
   const corruptTokenProvider = process.env.ZCODE_E2E_CORRUPT_OAUTH_TOKEN_PROVIDER;
-  if (corruptTokenProvider === BIGMODEL_PROVIDER_ID || corruptTokenProvider === ZAI_PROVIDER_ID) {
+  if (corruptTokenProvider === "bigmodel" || corruptTokenProvider === "zai") {
     // 业务 token 损坏曾绕过启动恢复的解密清理；共享 JWT 与资料正常才能隔离此路径。
     return {
       "oauth:active_provider": corruptTokenProvider,
       [`oauth:${corruptTokenProvider}:access_token`]: corruptEncryptedValue,
       [`oauth:${corruptTokenProvider}:refresh_token`]: "stale-refresh-token",
       [`oauth:${corruptTokenProvider}:user_info`]: JSON.stringify(
-        corruptTokenProvider === ZAI_PROVIDER_ID
+        corruptTokenProvider === "zai"
           ? { user_id: "e2e-user", name: "Fixture User" }
           : { id: "e2e-user", username: "Fixture User", displayName: "Fixture User" },
       ),
@@ -3622,9 +3620,9 @@ function createCorruptOAuthCredentialSeed(authProviderId: string): Record<string
     [`oauth:${authProviderId}:access_token`]: "stale-access-token",
     [`oauth:${authProviderId}:refresh_token`]: "stale-refresh-token",
     [`oauth:${authProviderId}:user_info`]: JSON.stringify(E2E_USER_PROFILE),
-    [`oauth:${BIGMODEL_PROVIDER_ID}:access_token`]: "stale-bigmodel-access-token",
-    [`oauth:${BIGMODEL_PROVIDER_ID}:refresh_token`]: "stale-bigmodel-refresh-token",
-    [`oauth:${BIGMODEL_PROVIDER_ID}:user_info`]: JSON.stringify(E2E_USER_PROFILE),
+    [`oauth:bigmodel:access_token`]: "stale-bigmodel-access-token",
+    [`oauth:bigmodel:refresh_token`]: "stale-bigmodel-refresh-token",
+    [`oauth:bigmodel:user_info`]: JSON.stringify(E2E_USER_PROFILE),
     zcodejwttoken: "stale-zcode-jwt-token",
     "bot:e2e:credential": "e2e-independent-bot-token",
   };

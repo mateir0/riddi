@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { BIGMODEL_PROVIDER_ID, ZAI_PROVIDER_ID } from "@zcode/shared";
 import {
   TID_LOGIN_TRIGGER,
   TID_OAUTH_ERROR,
@@ -15,12 +14,12 @@ import {
 
 const OAUTH_CREDENTIAL_KEYS = [
   "oauth:active_provider",
-  `oauth:${ZAI_PROVIDER_ID}:access_token`,
-  `oauth:${ZAI_PROVIDER_ID}:refresh_token`,
-  `oauth:${ZAI_PROVIDER_ID}:user_info`,
-  `oauth:${BIGMODEL_PROVIDER_ID}:access_token`,
-  `oauth:${BIGMODEL_PROVIDER_ID}:refresh_token`,
-  `oauth:${BIGMODEL_PROVIDER_ID}:user_info`,
+  "oauth:zai:access_token",
+  "oauth:zai:refresh_token",
+  "oauth:zai:user_info",
+  "oauth:bigmodel:access_token",
+  "oauth:bigmodel:refresh_token",
+  "oauth:bigmodel:user_info",
   "zcodejwttoken",
 ] as const;
 
@@ -32,7 +31,7 @@ describe("OAuth 凭据损坏恢复", () => {
 
   it("冷启动遇到无法解密的 OAuth 凭据时仍展示登录渠道并清理损坏登录态", async () => {
     await ensureOAuthLoginPanelOpen();
-    await waitForTestIdByDom(testId(TID_OAUTH_LOGIN_BUTTON, ZAI_PROVIDER_ID), {
+    await waitForTestIdByDom(testId(TID_OAUTH_LOGIN_BUTTON, "zai"), {
       timeout: 20000,
       timeoutMsg: "损坏 OAuth 凭据恢复后没有展示 Z.ai 登录入口",
     });
@@ -89,7 +88,7 @@ async function waitForCorruptOAuthCredentialsCleanup() {
 }
 
 async function ensureOAuthLoginPanelOpen() {
-  const zaiLoginButtonId = testId(TID_OAUTH_LOGIN_BUTTON, ZAI_PROVIDER_ID);
+  const zaiLoginButtonId = testId(TID_OAUTH_LOGIN_BUTTON, "zai");
 
   try {
     await browser.waitUntil(

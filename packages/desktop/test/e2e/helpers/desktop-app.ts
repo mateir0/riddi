@@ -12,7 +12,6 @@ import {
   NodePersonalProviderConfigRepository,
   PERSONAL_PROVIDER_CONFIG_FILE_NAME,
 } from "@zcode/provider-node";
-import { ZAI_PROVIDER_ID } from "@zcode/shared";
 import {
   TID_COMPOSER_WORKSPACE_TRIGGER,
   TID_V4_SESSION_PANE,
@@ -891,9 +890,9 @@ export async function seedCredentials(authToken = "mock-token") {
     JSON.stringify(
       {
         auth_token: authToken,
-        "oauth:active_provider": ZAI_PROVIDER_ID,
-        [`oauth:${ZAI_PROVIDER_ID}:access_token`]: authToken,
-        [`oauth:${ZAI_PROVIDER_ID}:user_info`]: JSON.stringify(E2E_USER_PROFILE),
+        "oauth:active_provider": "zai",
+        [`oauth:zai:access_token`]: authToken,
+        [`oauth:zai:user_info`]: JSON.stringify(E2E_USER_PROFILE),
         zcodejwttoken: authToken,
       },
       null,

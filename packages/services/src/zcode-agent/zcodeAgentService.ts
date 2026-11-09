@@ -1662,8 +1662,7 @@ export function createZCodeAgentService(
       | (typeof zcodeProviderRuntimeHeadersErrorCode)[keyof typeof zcodeProviderRuntimeHeadersErrorCode]
       | undefined;
     try {
-      const access = pending.request.accountAccess;
-      if (requiresRequestVerification(access)) {
+      if (requiresRequestVerification(undefined)) {
         let config: RequestVerificationConfig | null;
         try {
           config = (await options?.readRequestVerificationConfig?.()) ?? null;

@@ -9,8 +9,14 @@ import {
   sanitizeTelemetryEventDetail,
   type TelemetryEventPayload,
   type TelemetryRendererContext,
-  type OAuthLoginAttribution,
 } from "@zcode/shared";
+
+/** OAuth 登录归因参数（已废弃，保留类型兼容）。 */
+interface OAuthLoginAttribution {
+  channel_id?: string;
+  utm_source?: string;
+  utm_campaign?: string;
+}
 import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { version } from "node:os";

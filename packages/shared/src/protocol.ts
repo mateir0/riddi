@@ -254,6 +254,14 @@ export interface ResourceUsageSnapshot {
   processes: ResourceUsageProcess[];
 }
 
+/** 通用用户信息（非 OAuth 专属，供各模块复用）。 */
+export interface UserInfo {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
 export interface AppSettings {
   /** 当前 App/Host 不再显示提交前体验套餐推荐；不改变任何入口的模型选择。 */
   startPlanRecommendationDismissed?: boolean;
