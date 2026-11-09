@@ -580,11 +580,6 @@ const enUS: Record<string, string> = {
   "startup.database.elapsed": "Elapsed: {minutes} min {seconds} sec",
   "startup.database.longRunning":
     "Large histories can take longer. The app is still waiting for the database to finish.",
-  "rewards.title": "Rewards",
-  "rewards.menuTitle": "Refer a friend",
-  "rewards.menuBadge": "Rewards",
-  "rewards.loadFailed": "Unable to load this page. Please retry.",
-  "rewards.openWebsite": "Open website",
   "bashOutput.open": "View output for {title}",
   "bashOutput.fullFile": "Full output file",
   "bashOutput.retry": "Retry",

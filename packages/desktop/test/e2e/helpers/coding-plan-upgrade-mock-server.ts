@@ -5,7 +5,6 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { BUILTIN_MODEL_PROVIDER_IDS } from "@zcode/shared";
 import { createMarketingTouchFixture } from "./marketing-touch-fixture.js";
-import { rewardsWebsiteFixture } from "./rewards-website-fixture.js";
 
 export type CodingPlanUpgradeMockScenario =
   | "manual-claim-experience"
@@ -133,14 +132,6 @@ export async function startCodingPlanUpgradeMockServer(
         );
         requests.splice(0, requests.length);
         sendJson(response, { ok: true, scenario: state.scenario });
-        return;
-      }
-      if (marketing && /^\/(cn|en)\/rewards$/.test(pathname)) {
-        response.writeHead(200, {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        });
-        response.end(rewardsWebsiteFixture);
         return;
       }
       if (await marketing?.handle(request, response)) return;

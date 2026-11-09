@@ -156,7 +156,7 @@ describe("ZCode plugins", () => {
           await readFile(join(marketplaceRoot, "marketplace.json"), "utf8"),
         ) as { plugins: Array<{ icon?: string }> };
         expect(saved.plugins[0]?.icon).toBe(
-          "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+          "https://cdn.codegeex.cn/zcode/official-plugin/assets/figma/icon.png",
         );
       });
     } finally {
@@ -617,7 +617,7 @@ describe("ZCode plugins", () => {
             pluginCount: 15,
             source: {
               source: "url",
-              url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+              url: "https://cdn.codegeex.cn/zcode/official-plugin/marketplace.json",
             },
           }),
           expect.objectContaining({
@@ -2398,7 +2398,7 @@ describe("ZCode plugins", () => {
         pluginCount: 15,
         source: {
           source: "url",
-          url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+          url: "https://cdn.codegeex.cn/zcode/official-plugin/marketplace.json",
         },
       });
       expect(overview.diagnostics).toEqual(

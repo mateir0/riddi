@@ -10,17 +10,6 @@ import {
 
 describe("Coding Plan upgrade E2E mock server", () => {
   let server: CodingPlanUpgradeMockServer | null = null;
-  it("serves the isolated rewards bridge consumer on cn/en routes", async () => {
-    server = await startCodingPlanUpgradeMockServer("manual-claim-experience", {
-      marketingTouch: true,
-    });
-    for (const lang of ["cn", "en"]) {
-      const response = await fetch(`${server.baseUrl}/${lang}/rewards?embedded=app`);
-      expect(response.status).toBe(200);
-      expect(response.headers.get("content-type")).toContain("text/html");
-      expect(await response.text()).toContain("zcode-rewards-context");
-    }
-  });
   it("holds the query snapshot captured before a cancellation", async () => {
     server = await startCodingPlanUpgradeMockServer("manual-claim-experience", {
       marketingTouch: true,

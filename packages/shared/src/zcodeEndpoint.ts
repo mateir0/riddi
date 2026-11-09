@@ -24,14 +24,6 @@ export interface RuntimeZCodeEndpointEnv {
   ZCODE_PRODUCTION_BASE_URL?: string;
 }
 
-export interface RuntimeProductEndpointEnv extends RuntimeZCodeEndpointEnv {}
-
-export interface RuntimeProductEndpointConfig {
-  zcodeEnv: ZCodeEnv;
-  zcodeEndpointOrigin: string;
-  zcodeEndpointUrls: ZCodeEndpointUrls;
-}
-
 function readRuntimeEnvValue(
   env: Record<string, string | undefined>,
   key: string,
@@ -108,19 +100,6 @@ export function buildRuntimeZCodeEndpointUrls(
 export function buildRuntimeZCodeApiUrl(env: RuntimeZCodeEndpointEnv = {}, path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${resolveRuntimeZCodeEndpointOrigin(env)}${normalizedPath}`;
-}
-
-export function resolveRuntimeProductEndpointConfig(
-  env: RuntimeProductEndpointEnv = {},
-): RuntimeProductEndpointConfig {
-  const zcodeEnv = resolveRuntimeZCodeEnv(env);
-  const zcodeEndpointOrigin = resolveRuntimeZCodeEndpointOrigin(env);
-
-  return {
-    zcodeEnv,
-    zcodeEndpointOrigin,
-    zcodeEndpointUrls: buildZCodeEndpointUrls(zcodeEndpointOrigin),
-  };
 }
 
 export function buildZCodeEndpointUrls(origin: string): ZCodeEndpointUrls {

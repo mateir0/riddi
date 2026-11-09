@@ -130,7 +130,6 @@ export function MarketingTouchProvider({
               if (!controller.store.getState().dialog)
                 toast(intl.formatMessage({ id: "manualClaimPlan.claim.share.copyTextSucceeded" }));
             } else {
-              // 0.9.1：Rewards 页面托管在 Z.ai 账号域，已随账号链路整体下线。
               const opening = new AbortController();
               const abortOpening = () => opening.abort();
               signal.addEventListener("abort", abortOpening, { once: true });

@@ -1,7 +1,7 @@
 /**
  * 手机远控 UI 侧的通用契约（0.9.1 / 0.9.6）。
  *
- * 背景：Z.ai 账号门控的远控链路（OAuth + `zcode.z.ai` relay）已经整体删除，
+ * 背景：Z.ai 账号门控的远控链路（OAuth + relay）已经整体删除，
  * `@zcode/shared` 不再导出 `WebRemoteControl*` 契约。但 UI 的移动端外壳
  * （`WebRemoteControlMobileShell` / 侧栏）本身与厂商无关，仍然复用这些
  * 纯数据结构描述 workspace / task 列表。

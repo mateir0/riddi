@@ -1433,3 +1433,32 @@ exceptions:
     rule: unmanaged-new-file
     paths: [packages/shared/src/data-base-dir.ts]
     reason: 共享的数据根目录解析工具（优先级：显式参数 > ZCODE_DATA_BASE_DIR > HOME/USERPROFILE > homedir()），被 skills/roots.ts 与 commands/roots.ts 复用，避免重复逻辑；shared 仍为 unmanaged，采用精确路径准入，不接管整个 shared 目录。
+  - id: riddi-vendor-sweep-unmanaged-file-edits
+    rule: unmanaged-new-file
+    paths:
+      - apps/zcode-cli/packages/bootstrap/src/app/bundled-skills.ts
+      - apps/zcode-cli/packages/bootstrap/src/app/mcp-node-fallback.ts
+      - apps/zcode-cli/packages/bootstrap/src/mcp-config.ts
+      - apps/zcode-cli/packages/contracts/src/interfaces/execution.port.ts
+      - apps/zcode-cli/packages/bootstrap/src/app/bundled-plugins.ts
+      - packages/desktop/src/main/resourceManagerNetwork.ts
+      - packages/desktop/src/main/desktopHelpConfig.ts
+      - packages/desktop/src/main/desktopWindowChrome.ts
+      - packages/desktop/tsup.config.ts
+      - packages/desktop/vite.config.ts
+      - packages/desktop/scripts/ensure-e2e-desktop-build.mjs
+      - packages/desktop/test/e2e/helpers/coding-plan-upgrade-mock-server.ts
+      - packages/desktop/test/codingPlanUpgradeMockServer.test.ts
+      - packages/desktop/test/e2e/helpers/e2e-startup-credentials.ts
+      - packages/desktop/test/e2eStartupCredentials.test.ts
+      - packages/desktop/wdio.conf.ts
+      - packages/shared/src/marketingTouch.ts
+      - packages/shared/src/plugin-marketplaces.ts
+      - packages/shared/src/gen-ui/contract.ts
+      - packages/web/test/viteConfigLoad.test.ts
+      - packages/ui/src/v4/featureSuggestedPrompts.ts
+      - packages/ui/src/v4/officeSuggestedPrompts.ts
+      - packages/ui/src/v4/ConversationDraftSuggestedPrompts.tsx
+      - packages/ui/src/components/marketing-touch/MarketingTouchProvider.tsx
+      - packages/services/src/conversation-share/conversationShareService.ts
+    reason: 0.9.6 最终厂商清扫：这些已准入文件只做删除厂商域名/死代码与陈旧注释改写——bundled-skills 等五处把 zcode.cjs 改成当前 riddi.cjs 产物名；desktop 侧关闭 help 远端配置拉取、移除 Z.ai Rewards webview/PCDN/分区清理与 E2E mock；shared 侧删除 rewards 导出、营销 rewards 导航变体和厂商 CDN 市场源；web/ui 侧去掉 CDN 图标与下载链接、会话分享回链不再兜底厂商站点。owner、依赖方向与模块边界均不变，接管整个 shared/desktop/ui/web 包不在本次范围内。

@@ -4,8 +4,8 @@ import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { renderMarkerPng } from "./multimodal-marker-png.mjs";
 
-const MODEL = process.env.ZCODE_MODEL?.trim() || "glm-x-preview-f";
-const BASE_URL = (process.env.ZCODE_BASE_URL?.trim() || "https://open.bigmodel.cn/api/anthropic")
+const MODEL = process.env.ZCODE_MODEL?.trim() || "nvidia/llama-3.1-nemotron-70b-instruct";
+const BASE_URL = (process.env.ZCODE_BASE_URL?.trim() || "https://integrate.api.nvidia.com/v1")
   .replace(/\/+$/u, "")
   .replace(/\/v1$/u, "");
 const ENDPOINT = `${BASE_URL}/v1/messages`;

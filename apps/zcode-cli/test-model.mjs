@@ -1,11 +1,11 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 
 const client = createAnthropic({
-  apiKey: process.env.ZCODE_API_KEY,
-  baseURL: 'https://open.bigmodel.cn/api/anthropic',
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-const result = await client('glm-4.7').generateText({
+const result = await client('nvidia/llama-3.1-nemotron-70b-instruct').generateText({
   prompt: 'say hello in 3 words',
 });
 

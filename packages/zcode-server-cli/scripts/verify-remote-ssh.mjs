@@ -178,7 +178,7 @@ async function main() {
   );
   if (verifySystemd) {
     const { stdout: unitFiles } = await ssh(
-      `${serviceEnvironment} systemctl --user list-unit-files 'com.zhipu.zcode.server.*.service' --no-legend`,
+      `${serviceEnvironment} systemctl --user list-unit-files 'dev.riddi.server.*.service' --no-legend`,
     );
     assert(unitFiles.includes("enabled"), `systemd user unit enabled: ${unitFiles}`);
   }

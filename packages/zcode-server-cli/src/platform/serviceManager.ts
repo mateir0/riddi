@@ -36,7 +36,7 @@ export function createDaemonServiceDescriptor(options: {
       options.platform === "win32" ? "zcode.cmd" : "zcode",
     ),
     args: ["serve", "--supervisor", "--service-entry", "--server-root", options.layout.serverRoot],
-    name: `com.zhipu.zcode.server.${stablePathId(options.layout.serverRoot)}`,
+    name: `dev.riddi.server.${stablePathId(options.layout.serverRoot)}`,
   });
 }
 
@@ -52,7 +52,7 @@ export function createServiceDescriptor(options: {
   args?: string[];
   name?: string;
 }): ServiceDescriptor {
-  const name = options.name ?? "com.zhipu.zcode.server";
+  const name = options.name ?? "dev.riddi.server";
   const args = options.args ?? ["serve", "--daemon"];
   if (options.platform === "darwin") {
     return {
@@ -67,7 +67,7 @@ export function createServiceDescriptor(options: {
     return {
       kind: "systemd",
       name,
-      content: `[Unit]\nDescription=ZCode Server\n[Service]\nExecStart=${shellQuote(options.command)} ${args.map(shellQuote).join(" ")}\nRestart=on-failure\n[Install]\nWantedBy=default.target\n`,
+      content: `[Unit]\nDescription=Riddi Server\n[Service]\nExecStart=${shellQuote(options.command)} ${args.map(shellQuote).join(" ")}\nRestart=on-failure\n[Install]\nWantedBy=default.target\n`,
     };
   }
   return {

@@ -15,7 +15,6 @@ import {
   DEFAULT_LOCALE,
   desktopMenuMessageIds,
   getDesktopMenuMessage,
-  isTrustedRewardsUrl,
   PlatformChannels,
 } from "@zcode/shared";
 import { loadWindow, type WindowBootstrapOptions } from "./desktopHostProcess.js";
@@ -255,7 +254,6 @@ function shouldOpenEmbeddedBrowserRequestExternally(input: {
 function attachEmbeddedBrowserWindowOpenHandler(options: {
   hostWebContents: WebContents;
   guestWebContents: WebContents;
-  isRewardsGuest: boolean;
   resolveBrowserViewOwner?: (webContentsId: number) =>
     | {
         workspaceKey: string;
@@ -480,7 +478,7 @@ export function createBrowserWindow(options: {
   attachWindowsWindowRepaint(win);
   // will-attach 与 did-attach 按顺序配对；队列元素记录 guest 种类，did-attach 据此分派策略。
   const pendingWebviewGuestKinds: Array<
-    | { kind: "browser" | "codingPlan"; isRewards: boolean }
+    | { kind: "browser" | "codingPlan" }
     | { kind: "pluginSandbox"; sandboxId: string }
   > = [];
 
@@ -532,18 +530,6 @@ export function createBrowserWindow(options: {
       return;
     }
     webPreferences.preload = embeddedBrowserJavaScriptDialogPreloadPath;
-    const isRewardsWebview = isTrustedRewardsUrl(targetUrl, {
-      dev: !app.isPackaged,
-      e2e: process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
-    });
-    if (isRewardsWebview) {
-      webPreferences.preload = join(import.meta.dirname, "../preload/rewardsWebview.cjs");
-      if (!app.isPackaged)
-        webPreferences.additionalArguments = [
-          ...(webPreferences.additionalArguments ?? []),
-          "--zcode-rewards-dev",
-        ];
-    }
     webPreferences.contextIsolation = true;
     webPreferences.nodeIntegration = false;
     webPreferences.nodeIntegrationInSubFrames = true;
@@ -572,14 +558,12 @@ export function createBrowserWindow(options: {
 
     pendingWebviewGuestKinds.push({
       kind: "browser",
-      isRewards: isRewardsWebview,
     });
   });
 
   win.webContents.on("did-attach-webview", (_event, guestWebContents) => {
     const guestKind = pendingWebviewGuestKinds.shift() ?? {
       kind: "browser" as const,
-      isRewards: false,
     };
     if (guestKind.kind === "pluginSandbox") {
       getPluginSandboxHost()?.attachGuest({
@@ -593,7 +577,6 @@ export function createBrowserWindow(options: {
       guestWebContents,
       hostWebContents: win.webContents,
       resolveBrowserViewOwner: options.resolveBrowserViewOwner,
-      isRewardsGuest: guestKind.isRewards,
       logger: options.logger,
     });
     // 蓝牙设备选择事件挂在 guest WebContents 上（Session 只覆盖 hid/usb/serial）；

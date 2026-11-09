@@ -144,8 +144,6 @@ export interface ProjectSidebarProps {
   goBackShortcutLabel?: string;
   goForwardShortcutLabel?: string;
   onOpenCommandCenter: () => void;
-  onOpenRepoWiki?: () => void;
-  repoWikiActive?: boolean;
   onOpenAutomations?: () => void;
   onOpenPluginStore?: () => void;
   automationsActive?: boolean;

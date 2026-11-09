@@ -214,7 +214,7 @@ const groupDefinitions: readonly CapabilityGroupDefinition[] = [
     "host",
     "工作台服务（Workbench Services）",
     "工作台服务负责人（Workbench Services Owner）",
-    "负责 File、Terminal、Git、Repo Wiki、Repo Snapshot 与索引服务。",
+    "负责 File、Terminal、Git、Repo Snapshot 与索引服务。",
     19_100,
     "medium-high",
   ],

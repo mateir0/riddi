@@ -111,9 +111,8 @@ describe("NodePluginAdapter", () => {
       { name: "unsafe", icon: "../unsafe.png", mimeType: "image/png" },
       { name: "svg", icon: "svg/icon.svg", mimeType: "image/svg+xml" },
     ]);
-    expect(icons.get("figma")).toBe(
-      "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
-    );
+    // Riddi 不再托管插件图标 CDN：只有显式绝对 https PNG 地址被接受，相对路径直接忽略。
+    expect(icons.has("figma")).toBe(false);
     expect(icons.has("unsafe")).toBe(false);
     expect(icons.has("svg")).toBe(false);
 
@@ -125,15 +124,12 @@ describe("NodePluginAdapter", () => {
           { name: "existing", icon: "https://example.com/existing.png", source: "./existing" },
         ],
       },
-      new Map([
-        ["figma", icons.get("figma")!],
-        ["existing", "https://cdn.example.com/replacement.png"],
-      ]),
+      new Map([["figma", "https://cdn.example.com/figma.png"]]),
     );
     expect(enriched.plugins).toEqual([
       {
         name: "figma",
-        icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+        icon: "https://cdn.example.com/figma.png",
         source: "./figma",
       },
       { name: "existing", icon: "https://example.com/existing.png", source: "./existing" },
@@ -289,12 +285,16 @@ describe("NodePluginAdapter", () => {
           .fn()
           .mockResolvedValue(
             new Response(
-              JSON.stringify([{ name: "figma", icon: "figma/icon.png", mimeType: "image/png" }]),
+              JSON.stringify([
+                { name: "figma", icon: "https://cdn.example.com/figma.png", mimeType: "image/png" },
+              ]),
               { status: 200 },
             ),
           ),
       );
 
+      // 0.9.6：图标源只从本地 icon-sources.json 缓存读取，不再走 fetch，因此这里
+      // 不写缓存文件；marketplace 主清单刷新保持原样（图标缺省）。
       await updateMarketplace({ marketplace: "claude-plugins-official", storageRoot });
 
       expect(
@@ -303,14 +303,10 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            source: "./figma",
           },
         ],
       });
-      const cached = JSON.parse(
-        await readFile(join(storageRoot, "icon-sources.json"), "utf8"),
-      ) as unknown;
-      expect(cached).toEqual([{ name: "figma", icon: "figma/icon.png", mimeType: "image/png" }]);
     } finally {
       await rm(dir, { force: true, recursive: true });
     }
@@ -339,13 +335,15 @@ describe("NodePluginAdapter", () => {
           pluginCount: 1,
         },
       ]);
-      let resolveFetch!: (response: Response) => void;
-      const fetchMock = vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            resolveFetch = resolve;
-          }),
+      await mkdir(storageRoot, { recursive: true });
+      // 0.9.6：图标源只读本地缓存；预置缓存后 enrich 不再发起任何网络请求。
+      await writeFile(
+        join(storageRoot, "icon-sources.json"),
+        JSON.stringify([
+          { name: "figma", icon: "https://cdn.example.com/figma.png", mimeType: "image/png" },
+        ]),
       );
+      const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
       let writeLockCalls = 0;
       const migration = enrichCachedClaudeMarketplaceIcons(storageRoot, async (write) => {
@@ -353,19 +351,9 @@ describe("NodePluginAdapter", () => {
         await write();
       });
 
-      await Promise.resolve();
-      expect(writeLockCalls).toBe(0);
-      resolveFetch(
-        new Response(
-          JSON.stringify([{ name: "figma", icon: "figma/icon.png", mimeType: "image/png" }]),
-          { status: 200 },
-        ),
-      );
       await migration;
 
-      await enrichCachedClaudeMarketplaceIcons(storageRoot);
-
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
       expect(writeLockCalls).toBe(1);
       expect(
         loadMarketplaceManifestSync(storageRoot, "claude-plugins-official")?.raw,
@@ -373,7 +361,7 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            icon: "https://cdn.example.com/figma.png",
           },
         ],
       });
@@ -399,7 +387,9 @@ describe("NodePluginAdapter", () => {
       await mkdir(storageRoot, { recursive: true });
       await writeFile(
         join(storageRoot, "icon-sources.json"),
-        JSON.stringify([{ name: "figma", icon: "figma/icon.png", mimeType: "image/png" }]),
+        JSON.stringify([
+          { name: "figma", icon: "https://cdn.example.com/figma.png", mimeType: "image/png" },
+        ]),
       );
       await writeKnownMarketplaces(storageRoot, [
         {
@@ -420,7 +410,7 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            icon: "https://cdn.example.com/figma.png",
           },
         ],
       });

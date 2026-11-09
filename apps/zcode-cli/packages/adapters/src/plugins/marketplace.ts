@@ -50,8 +50,6 @@ const INSTALLED_PLUGINS_FILE = "installed_plugins.json";
 const MARKETPLACE_FILE = "marketplace.json";
 const CLAUDE_OFFICIAL_MARKETPLACE = "claude-plugins-official";
 const PLUGIN_ICON_SOURCES_FILE = "icon-sources.json";
-const PLUGIN_ICON_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets/";
-const PLUGIN_ICON_SOURCES_URL = `${PLUGIN_ICON_ASSETS_BASE_URL}${PLUGIN_ICON_SOURCES_FILE}`;
 const MARKETPLACE_JSON_MAX_BYTES = 10 * 1024 * 1024;
 const MARKETPLACE_JSON_MAX_REDIRECTS = 5;
 const MARKETPLACE_JSON_TIMEOUT_MS = 180_000;
@@ -549,10 +547,13 @@ export function parsePluginIconSources(value: unknown): Map<string, string> {
     const icon = typeof item.icon === "string" ? item.icon.trim() : "";
     const mimeType = typeof item.mimeType === "string" ? item.mimeType : undefined;
     const sha256 = typeof item.sha256 === "string" ? item.sha256 : undefined;
-    if (!PLUGIN_NAME_PATTERN.test(name) || !isSafePluginIconPath(icon)) continue;
+    // Riddi 不托管插件图标 CDN：只接受显式的绝对 https PNG 地址，
+    // 相对路径（旧厂商 CDN 的形态）直接忽略，避免把请求引回被移除的厂商域。
+    const iconUrl = parseAbsolutePluginIconUrl(icon);
+    if (!PLUGIN_NAME_PATTERN.test(name) || !iconUrl) continue;
     if (mimeType !== undefined && mimeType !== "image/png") continue;
     if (sha256 !== undefined && !SOURCE_SHA256_PATTERN.test(sha256)) continue;
-    result.set(name, new URL(icon, PLUGIN_ICON_ASSETS_BASE_URL).href);
+    result.set(name, iconUrl);
   }
   return result;
 }
@@ -601,50 +602,24 @@ export async function enrichCachedClaudeMarketplaceIcons(
   }
 }
 
-function isSafePluginIconPath(icon: string): boolean {
-  if (!icon.endsWith(".png") || icon.startsWith("/") || icon.includes("\\")) return false;
-  const segments = icon.split("/");
-  return segments.length >= 2 && segments.every((segment) => PLUGIN_NAME_PATTERN.test(segment));
+function parseAbsolutePluginIconUrl(icon: string): string | undefined {
+  try {
+    const url = new URL(icon);
+    return url.protocol === "https:" && url.pathname.toLowerCase().endsWith(".png")
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function loadClaudePluginIconSources(
   storageRoot: string,
-  operationSignal?: AbortSignal,
+  _operationSignal?: AbortSignal,
 ): Promise<Map<string, string>> {
-  const cachePath = join(storageRoot, PLUGIN_ICON_SOURCES_FILE);
-  const cached = (): Map<string, string> => parsePluginIconSources(readJsonFileSync(cachePath));
-  const controller = new AbortController();
-  const abort = (): void => controller.abort();
-  operationSignal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(abort, 10_000);
-  try {
-    const response = await requestMarketplaceJson(
-      PLUGIN_ICON_SOURCES_URL,
-      undefined,
-      controller.signal,
-      10_000,
-    );
-    const value = response;
-    const parsed = parsePluginIconSources(value);
-    if (parsed.size === 0) return cached();
-    // 缓存只保留产品需要的字段，不落盘素材源机器路径等 provenance 信息。
-    const sanitized: PluginIconSourceRecord[] = [...parsed.entries()].map(([name, iconUrl]) => ({
-      name,
-      icon: new URL(iconUrl).pathname.slice(new URL(PLUGIN_ICON_ASSETS_BASE_URL).pathname.length),
-      mimeType: "image/png",
-    }));
-    try {
-      await writeJsonFile(cachePath, sanitized);
-    } catch {
-      // 图标缓存写入失败不影响本次 marketplace 主数据刷新。
-    }
-    return parsed;
-  } catch {
-    return cached();
-  } finally {
-    clearTimeout(timeout);
-    operationSignal?.removeEventListener("abort", abort);
-  }
+  // 0.9.6：图标源此前从厂商 CDN 拉取。Riddi 不再内置任何厂商域名，
+  // 因此只读取本地缓存文件；没有缓存时保持 marketplace 原样（图标缺省）。
+  return parsePluginIconSources(readJsonFileSync(join(storageRoot, PLUGIN_ICON_SOURCES_FILE)));
 }
 
 async function requestMarketplaceJson(

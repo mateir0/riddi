@@ -21,7 +21,6 @@ const text = z.object({
 });
 export const marketingNavigationSchema = z.discriminatedUnion("page", [
   z.object({ page: z.literal("upgrade") }).strict(),
-  z.object({ page: z.literal("rewards") }).strict(),
   z
     .object({
       page: z.literal("settings"),
