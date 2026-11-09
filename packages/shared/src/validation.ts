@@ -21,7 +21,7 @@ import { zcodeProviderSchema } from "./providers.js";
 import { REMOTE_ASSET_INSTALL_MODES } from "./remoteAssetInstallMode.js";
 import { isKnownRemoteResourcePackageId } from "./remoteResourcePackages.js";
 import { sourceServerArtifactPolicySchema } from "./source-server/release.js";
-import { sessionWorkflowActivitySchema } from "./zcode-protocol-v4/sessions-index-workflow-activity.js";
+
 import {
   taskOwnerCommandDeliverySchema,
   taskOwnerCommandRequestSchema,

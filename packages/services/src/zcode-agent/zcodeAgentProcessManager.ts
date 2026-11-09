@@ -368,7 +368,7 @@ async function buildZCodeAgentSpawnPreflight(
 function resolveBundledWorkspaceZCodeAgentCommand(
   context: ZCodeAgentCommandResolverContext,
 ): ZCodeAgentCommand | null {
-  const distEntrypoint = findUpward("apps/zcode-cli/packages/cli/dist/zcode.cjs");
+  const distEntrypoint = findUpward("apps/zcode-cli/packages/cli/dist/riddi.cjs");
   if (distEntrypoint) {
     const useBytecode =
       process.versions.electron && process.env.ZCODE_DESKTOP_AGENT_BYTECODE === "1";
@@ -429,7 +429,7 @@ function resolveElectronRuntimeZCodeAgentCommand(
 ): ZCodeAgentCommand | null {
   // 桌面打包态：host 跑在 Electron utility process 里，process.execPath 指向 Electron Helper，
   // 它内置的 Node runtime 与 zcode-cli 目标版本一致（Electron 41 = Node 24.x）。
-  // 这里直接用 app 自带的 Electron Node 执行打进 resources/glm 的 zcode.cjs，
+  // 这里直接用 app 自带的 Electron Node 执行打进 resources/glm 的 riddi.cjs，
   // 不再随包内置一份独立 Node 二进制（体积从 ~180MB 降到 ~16MB，且跨平台同一份 JS）。
   // 用 process.versions.electron 作为闸门：远端 SSH/WSL host 由系统 Node 运行、没有 electron，
   // 会跳过这里继续走原生二进制兜底，桌面/远端两条链路互不影响。
@@ -466,7 +466,7 @@ export function resolveDefaultZCodeAgentCommand(
   }
 
   // 顺序：env 显式覆盖 → monorepo dev 源码/dist（dev 改源码立刻生效，不会被远端历史装的 native binary
-  // 抢先匹配）→ 桌面打包态 Electron Node runtime 跑 zcode.cjs → 已部署 native binary（远端 SSH 兜底）。
+  // 抢先匹配）→ 桌面打包态 Electron Node runtime 跑 riddi.cjs → 已部署 native binary（远端 SSH 兜底）。
   const bundled =
     resolveBundledWorkspaceZCodeAgentCommand(context) ??
     resolveElectronRuntimeZCodeAgentCommand(context);

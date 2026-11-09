@@ -1,4 +1,4 @@
-// Agent bundle 的暂存动作：把 apps/zcode-cli/packages/cli/dist/zcode.cjs 放进
+// Agent bundle 的暂存动作：把 apps/zcode-cli/packages/cli/dist/riddi.cjs 放进
 // bundled-agents/<平台>/glm，并写 meta。
 //
 // dev 与打包**必须**用同一份暂存实现。
@@ -11,11 +11,11 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-export const AGENT_BUNDLE_SOURCE_RELATIVE = "apps/zcode-cli/packages/cli/dist/zcode.cjs";
+export const AGENT_BUNDLE_SOURCE_RELATIVE = "apps/zcode-cli/packages/cli/dist/riddi.cjs";
 
 /**
  * 修复原因（2026-10-24 真机）：node_repl MCP server（含内联的 CUA agent runtime）
- * 不在 zcode.cjs 里 —— agent 从 ~/.zcode plugin cache 启动它。dev 的 zcode.cjs 是
+ * 不在 riddi.cjs 里 —— agent 从 ~/.zcode plugin cache 启动它。dev 的 riddi.cjs 是
  * 纯 esbuild bundle（无 SEA 资产），bootstrap 的 filesystem seed rootCandidates 又
  * 解析不到 apps/zcode-cli/packages/node-repl-host（cwd 是工作区不是仓库布局），
  * 于是 dev agent 只能消费 cache 现有内容；cache 的唯一写入者是生产版 agent 的
@@ -34,7 +34,7 @@ export function resolveAgentBundlePaths({ repoRoot, platformKey }) {
   return {
     cliBundlePath: resolve(repoRoot, AGENT_BUNDLE_SOURCE_RELATIVE),
     glmDir,
-    stagedBundlePath: resolve(glmDir, "zcode.cjs"),
+    stagedBundlePath: resolve(glmDir, "riddi.cjs"),
     stagedMetaPath: resolve(glmDir, ".node-bundle-meta.json"),
   };
 }
@@ -57,7 +57,7 @@ export function stageAgentBundle({ repoRoot, platformKey, log = console.log }) {
   copyFileSync(cliBundlePath, stagedBundlePath);
   const meta = {
     runtime: "electron-node",
-    entry: "zcode.cjs",
+    entry: "riddi.cjs",
     platform: platformKey,
     source: AGENT_BUNDLE_SOURCE_RELATIVE,
   };

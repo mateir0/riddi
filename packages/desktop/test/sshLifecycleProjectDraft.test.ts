@@ -107,7 +107,7 @@ it("冷恢复只终止 Core 所属 Agent，不把查询 shell 或插件进程当
   const ps = [
     "146 135 /runtime/node /runtime/server-core.js 1",
     "174 146 zcode-cli",
-    "180 146 /runtime/node /runtime/zcode.cjs app-server --stdio",
+    "180 146 /runtime/node /runtime/riddi.cjs app-server --stdio",
     "236 174 zcode-cli",
     "316 314 sh -c ps -eo pid,args | awk '/app-server --stdio/'",
   ].join("\n");

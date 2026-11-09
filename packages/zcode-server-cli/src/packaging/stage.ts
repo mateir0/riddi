@@ -17,9 +17,9 @@ export { collectBareModuleSpecifiers, isNodePtyRuntimePath, resolveProductionPac
 export interface StageOptions {
   target: ServerTarget;
   appVersion: string;
-  /** tsup 产物目录（server-cli.js / server-core.js） */
+  /** tsup 产物目录（riddi-server.js / server-core.js） */
   distDir: string;
-  /** 既有 CLI/Agent bundle（zcode.cjs，自包含 CJS） */
+  /** 既有 CLI/Agent bundle（riddi.cjs，自包含 CJS） */
   agentBundlePath: string;
   /** CLI 内置技能包；不依赖官方插件缓存。 */
   bundledSkillsDir: string;
@@ -51,15 +51,15 @@ export interface StagedRelease {
 }
 
 const POSIX_LAUNCHER = `#!/bin/sh
-# 由 zcode-server staging 生成：定位发行根后用随包 Node 启动 Server CLI。
+# 由 riddi-server staging 生成：定位发行根后用随包 Node 启动 Server CLI。
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-exec "$DIR/runtime/node" "$DIR/runtime/server-cli.js" "$@"
+exec "$DIR/runtime/node" "$DIR/runtime/riddi-server.js" "$@"
 `;
 
 const WINDOWS_LAUNCHER = [
   "@echo off",
   'set "DIR=%~dp0.."',
-  '"%DIR%\\runtime\\node.exe" "%DIR%\\runtime\\server-cli.js" %*',
+  '"%DIR%\\runtime\\node.exe" "%DIR%\\runtime\\riddi-server.js" %*',
   "",
 ].join("\r\n");
 
@@ -222,7 +222,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
 
   // 入口 bundle 与 sourcemap 同名复制，文件名必须与 cli.ts 的相对路径解析保持一致。
   const bundleSources: string[] = [];
-  for (const entryName of ["server-cli.js", "server-core.js"]) {
+  for (const entryName of ["riddi-server.js", "server-core.js"]) {
     const sourcePath = join(options.distDir, entryName);
     const contents = await readFile(sourcePath, "utf8");
     bundleSources.push(contents);
@@ -233,7 +233,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
     `${JSON.stringify({ name: releaseName, private: true, type: "module" }, null, 2)}\n`,
     "utf8",
   );
-  await cp(options.agentBundlePath, join(runtimeDir, "zcode.cjs"), {
+  await cp(options.agentBundlePath, join(runtimeDir, "riddi.cjs"), {
     dereference: true,
   });
   // 修复原因：dynamic-workflows 已迁出插件，按 -plugin 复制会漏带工作流的必需技能。
@@ -335,7 +335,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
     {
       id: "server-runtime",
       paths: [
-        "runtime/server-cli.js",
+        "runtime/riddi-server.js",
         "runtime/server-core.js",
         "runtime/package.json",
         "runtime/node_modules",
@@ -344,7 +344,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
     },
     {
       id: "agent-runtime",
-      paths: ["runtime/zcode.cjs", "runtime/packages/bundled-skills", "runtime/licenses/agent"],
+      paths: ["runtime/riddi.cjs", "runtime/packages/bundled-skills", "runtime/licenses/agent"],
     },
     ...(plugins.length > 0
       ? [

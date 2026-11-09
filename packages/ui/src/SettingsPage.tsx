@@ -29,7 +29,6 @@ import {
   TID_SETTINGS_BACK_BUTTON,
   TID_SETTINGS_PAGE,
   TID_SETTINGS_SECTION_NAV,
-  TID_SETTINGS_USAGE_TAB,
   testId,
 } from "@zcode/shared/test-ids";
 import { Button } from "@/components/ui/button.js";

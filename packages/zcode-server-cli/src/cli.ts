@@ -121,7 +121,7 @@ export async function runServerCli(
     const command = parsed.argv[0];
     if (command === "version" || command === "--version") {
       // Bug 原因：Server --version 过去落入 legacy delegate，实际输出取决于旁边的 Agent
-      // zcode.cjs，Desktop probe 无法稳定判断 Server compatibility。
+      // riddi.cjs，Desktop probe 无法稳定判断 Server compatibility。
       stdout(io, json ? { product: "zcode-server", version: ZCODE_VERSION } : ZCODE_VERSION);
       return 0;
     }
@@ -808,11 +808,11 @@ async function readControlStatus(
 async function delegateLegacyCli(argv: readonly string[], io: CliIO): Promise<number> {
   const candidate =
     process.env.ZCODE_LEGACY_CLI_ENTRY?.trim() ||
-    join(dirname(fileURLToPath(import.meta.url)), "zcode.cjs");
+    join(dirname(fileURLToPath(import.meta.url)), "riddi.cjs");
   try {
     await access(candidate);
   } catch {
-    stdout(io, argv.length ? `Unknown command: ${argv[0]}` : "ZCode TUI");
+    stdout(io, argv.length ? `Unknown command: ${argv[0]}` : "Riddi TUI");
     return argv.length ? 1 : 0;
   }
   const child = fork(candidate, [...argv], { stdio: "inherit" });

@@ -508,10 +508,8 @@ import { resolveBrokerSocketPath } from "@zcode/zcode-cua/broker/socketPath";
 import {
   DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
   formatLogPrefix,
-  isCredentialDecryptError,
   type ServiceAuthorityMode,
   resolveRuntimeZCodeEndpointOrigin,
-  resolveSafeTelemetryHostname,
   type BrowserBackendDescriptor,
   type BrowserClientMode,
   type BrowserCommand,

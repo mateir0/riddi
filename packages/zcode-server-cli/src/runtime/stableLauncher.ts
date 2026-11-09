@@ -29,7 +29,7 @@ if [ -n "$RELEASE_DIR" ]; then
     "$ROOT/releases"/*) ;;
     *) echo "Invalid current ZCode Server release" >&2; exit 1 ;;
   esac
-  exec "$RELEASE_DIR/runtime/node" "$RELEASE_DIR/runtime/server-cli.js" "$@"
+  exec "$RELEASE_DIR/runtime/node" "$RELEASE_DIR/runtime/riddi-server.js" "$@"
 fi
 ${fallback}
 `;
@@ -53,7 +53,7 @@ if errorlevel 1 (\r
 )\r
 for /f "delims=" %%I in ('powershell -NoProfile -Command "$path=Join-Path $env:ZCODE_SERVER_ROOT 'current.json'; if (Test-Path -LiteralPath $path) { $j=Get-Content -Raw -LiteralPath $path ^| ConvertFrom-Json; $j.releaseDir }"') do set "RELEASE_DIR=%%I"\r
 if not "%RELEASE_DIR%"=="" (\r
-  "%RELEASE_DIR%\\runtime\\node.exe" "%RELEASE_DIR%\\runtime\\server-cli.js" %*\r
+  "%RELEASE_DIR%\\runtime\\node.exe" "%RELEASE_DIR%\\runtime\\riddi-server.js" %*\r
   exit /b %ERRORLEVEL%\r
 )\r
 ${fallback}`;

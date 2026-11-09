@@ -35,7 +35,7 @@ async function runDaemonLauncher(
 ): Promise<ProcessResult> {
   const runtimeRoot = join(release.releaseDir, "runtime");
   const runtimeNode = join(runtimeRoot, process.platform === "win32" ? "node.exe" : "node");
-  const serverCli = join(runtimeRoot, "server-cli.js");
+  const serverCli = join(runtimeRoot, "riddi-server.js");
   const child = spawn(
     runtimeNode,
     [serverCli, "serve", "--daemon", "--server-root", layout.serverRoot, "--json"],

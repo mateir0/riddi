@@ -24,7 +24,7 @@ export const SERVER_CLI_DEFINES = {
 
 export default defineConfig({
   entry: {
-    "server-cli": "src/main.ts",
+    "riddi-server": "src/main.ts",
     "server-core": "src/server-core/entry.ts",
   },
   outDir: "dist",

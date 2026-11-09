@@ -5,7 +5,6 @@ import {
 import {
   ProviderRegistryService,
   ProviderSettingsFacade,
-  type ProviderConfigSnapshot,
   type ProviderSettingsMutationTarget,
   type ProviderSource,
 } from "@zcode/provider";

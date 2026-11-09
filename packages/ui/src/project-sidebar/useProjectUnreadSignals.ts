@@ -3,7 +3,7 @@ import type {
   ProjectTaskRef,
   WindowHostTaskUnreadSignal,
 } from "@/project-sidebar/contract.js";
-import { mutateProjectTask, readProjectTaskMeta } from "@/project-sidebar/task-mutation.js";
+import { mutateProjectTask } from "@/project-sidebar/task-mutation.js";
 import { useBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useTabStoreApi } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";

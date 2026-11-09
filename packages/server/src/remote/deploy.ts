@@ -729,7 +729,7 @@ function resolveRequiredMockReleasePaths(
         }
         break;
       case "glm":
-        requiredPaths.add(`glm/${platformArch}/zcode.cjs`);
+        requiredPaths.add(`glm/${platformArch}/riddi.cjs`);
         for (const relativePath of REMOTE_AGENT_OFFICIAL_PLUGIN_REQUIRED_RELATIVE_PATHS) {
           requiredPaths.add(`glm/${platformArch}/packages/${relativePath}`);
         }

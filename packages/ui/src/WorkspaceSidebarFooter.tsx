@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
-import { Badge } from "@/components/ui/badge.js";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,6 @@ import {
   Copy,
   PencilRuler,
   Globe,
-  Gift,
   Loader2,
   LogInIcon,
   LogOut,

@@ -23,7 +23,7 @@ async function fixture(t) {
   await cp(runnerSource, join(root, "bin/zcode.mjs"));
   await writeFile(join(root, "package.json"), JSON.stringify({ type: "module", version: "1.2.3" }));
   await writeFile(
-    join(root, "agent/zcode.cjs"),
+    join(root, "agent/riddi.cjs"),
     `
 process.stdout.write(JSON.stringify({ argv: process.argv.slice(2), entry: process.argv[1], cwd: process.cwd() }));
 process.exitCode = Number(process.env.FIXTURE_EXIT_CODE || 0);
@@ -52,7 +52,7 @@ test("default launch and CLI arguments reuse the Agent entry without starting We
     const result = await exec(process.execPath, [runner, ...args], { cwd: directory });
     assert.deepEqual(JSON.parse(result.stdout), {
       argv: args,
-      entry: join(root, "agent/zcode.cjs"),
+      entry: join(root, "agent/riddi.cjs"),
       cwd: directory,
     });
   }
@@ -141,7 +141,7 @@ test("Web mode passes its runtime configuration and terminates its child on shut
     workspace: directory,
     staticRoot: join(root, "web"),
     command: process.execPath,
-    args: [join(root, "agent/zcode.cjs"), "app-server", "--stdio"],
+    args: [join(root, "agent/riddi.cjs"), "app-server", "--stdio"],
     token: "",
   });
   const exited = once(child, "exit");
@@ -154,10 +154,10 @@ test("installer creates zcode and the installed command defaults to CLI", async 
   const downloads = join(directory, "downloads");
   const releaseDir = join(downloads, "releases/1.2.3");
   await mkdir(releaseDir, { recursive: true });
-  await exec("tar", ["-czf", join(releaseDir, "zcode-1.2.3.tar.gz"), "-C", directory, "zcode"]);
+  await exec("tar", ["-czf", join(releaseDir, "riddi-1.2.3.tar.gz"), "-C", directory, "riddi"]);
   await writeFile(
     join(downloads, "latest.json"),
-    JSON.stringify({ version: "1.2.3", tarball: "zcode-1.2.3.tar.gz" }),
+    JSON.stringify({ version: "1.2.3", tarball: "riddi-1.2.3.tar.gz" }),
   );
   const installer = join(directory, "install.sh");
   await writeFile(installer, installScriptSource(`file://${downloads}/`));

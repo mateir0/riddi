@@ -103,7 +103,7 @@ export async function createToolSearchCliFixture(
     root,
     workspace,
     env,
-    cliPath: join(repoRoot, "apps/zcode-cli/packages/cli/dist/zcode.cjs"),
+    cliPath: join(repoRoot, "apps/zcode-cli/packages/cli/dist/riddi.cjs"),
     requests,
     select,
     reply,
@@ -119,7 +119,7 @@ export async function createToolSearchCliFixture(
       const child = spawn(
         process.execPath,
         [
-          join(repoRoot, "apps/zcode-cli/packages/cli/dist/zcode.cjs"),
+          join(repoRoot, "apps/zcode-cli/packages/cli/dist/riddi.cjs"),
           ...args,
           "--no-browser",
           "--output-format",

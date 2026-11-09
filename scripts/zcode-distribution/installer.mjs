@@ -1,4 +1,4 @@
-const packageDirName = "zcode";
+const packageDirName = "riddi";
 
 export function installScriptSource(baseUrl) {
   return `#!/usr/bin/env sh
@@ -42,14 +42,14 @@ mv "$TARGET.new/${packageDirName}" "$TARGET"
 rm -rf "$TARGET.new"
 ln -sfn "$TARGET" "$INSTALL_DIR/current"
 
-cat > "$BIN_DIR/zcode" <<SH
+cat > "$BIN_DIR/riddi" <<SH
 #!/usr/bin/env sh
-exec node "$INSTALL_DIR/current/bin/zcode.mjs" "\\$@"
+exec node "$INSTALL_DIR/current/bin/riddi.mjs" "\\$@"
 SH
-chmod +x "$BIN_DIR/zcode"
+chmod +x "$BIN_DIR/riddi"
 
-echo "ZCode $VERSION installed."
-echo "Run: zcode (TUI) or zcode --web (Web)"
+echo "Riddi $VERSION installed."
+echo "Run: riddi (TUI) or riddi --web (Web)"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "Note: $BIN_DIR is not in PATH." ;;

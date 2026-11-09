@@ -138,7 +138,6 @@ import {
   zcodeComputerUseOperationEventSchema,
   zcodeProviderRuntimeHeadersCancelledSchema,
   zcodeProviderRuntimeHeadersRequestParamsSchema,
-  zcodeProviderRefreshRegistryResultSchema,
   zcodeProviderTestModelConnectivityResultSchema,
   zcodeOfficialMcpAuthHeadersRequestParamsSchema,
   type OfficialAuthConsumerKind,
@@ -172,7 +171,6 @@ import {
   zcodeWorkspaceHookTrustGrantResultSchema,
   zcodeWorkspaceUpdateInteractionPreferencesResultSchema,
   zcodeWorkspaceUpdateModelIoPreferencesResultSchema,
-  zcodeProviderUpdateAccountConfigResultSchema,
   type ZCodeSessionStateSnapshot,
   type ZCodeAutomation,
   type ZCodeAutomationRun,
@@ -203,7 +201,6 @@ import { ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE } from "./zcodeAgent.js";
 import type {
   ZCodeProtocolRequestId,
   ModelSelection,
-  ZCodeProviderRuntimeHeadersRequestParams,
   ZCodeProviderRuntimeHeadersCancelled,
   ZCodeSessionEvent,
   ZCodeSessionRuntimePreferencesScope,

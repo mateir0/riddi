@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+
 import type { IDisposable } from "@zcode/rpc";
 import { ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE, type IZCodeAgentService } from "@zcode/services";
 import {

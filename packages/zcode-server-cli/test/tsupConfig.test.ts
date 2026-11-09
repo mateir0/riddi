@@ -53,7 +53,7 @@ it("loads the real ESM Server CLI bundle before handling a version probe", async
     );
     const { stdout } = await execFileAsync(
       process.execPath,
-      [join(runtimeDir, "server-cli.js"), "--version", "--json"],
+      [join(runtimeDir, "riddi-server.js"), "--version", "--json"],
       {
         cwd: runtimeDir,
         // 不继承测试加载器；发行入口需要依靠 Node 自身的模块加载规则启动。

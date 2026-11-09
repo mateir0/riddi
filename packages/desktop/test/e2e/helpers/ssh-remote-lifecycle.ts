@@ -412,7 +412,7 @@ export async function listRemoteZCodeServerPids(config: SSHConnectionConfig): Pr
     throw new Error(`读取远端 zcode-server PID 失败: ${result.stderr}`);
   }
   // 缺陷原因：这里原先匹配 `zcode-server.cjs`，而 3.12 的 release 布局早已把 daemon 换成
-  // <release>/runtime/server-cli.js serve --supervisor（工作进程是 server-core.js）。旧名字
+  // <release>/runtime/riddi-server.js serve --supervisor（工作进程是 server-core.js）。旧名字
   // 在远端根本不存在，匹配结果恒为空数组，SSH-P0-LIFE-02 只会报 before=/current= 全空，
   // 看不出是探测失效而不是产品没起 server（2026-09-15 服务器全量实测）。
   // 只认 daemon 一个角色：core 由 daemon 拉起，若一并计入，「一次连接新增恰好一个」的
@@ -420,7 +420,7 @@ export async function listRemoteZCodeServerPids(config: SSHConnectionConfig): Pr
   return result.stdout
     .split("\n")
     .flatMap((line) => {
-      const match = line.match(/^\s*(\d+)\s+.*server-cli\.js\s+serve\b/u);
+      const match = line.match(/^\s*(\d+)\s+.*riddi-server\.js\s+serve\b/u);
       return match ? [Number.parseInt(match[1]!, 10)] : [];
     })
     .filter((pid) => Number.isSafeInteger(pid) && pid > 0);

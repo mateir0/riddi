@@ -187,7 +187,7 @@ describe("stageRelease", () => {
     const distDir = join(root, "dist");
     await mkdir(distDir, { recursive: true });
     await writeFile(
-      join(distDir, "server-cli.js"),
+      join(distDir, "riddi-server.js"),
       'import "fake-dep";\nimport "node-pty";\n',
       "utf8",
     );
@@ -227,7 +227,7 @@ describe("stageRelease", () => {
     for (const name of ["SKILL.md", "patterns.md", "examples.md"]) {
       await writeFile(join(bundledSkillsDir, "skills/dynamic-workflows", name), `fixture ${name}`);
     }
-    const agentBundlePath = join(root, "zcode.cjs");
+    const agentBundlePath = join(root, "riddi.cjs");
     await writeFile(agentBundlePath, "// fake agent bundle\n", "utf8");
     const nodeBinaryPath = join(root, "node-binary");
     await writeFile(nodeBinaryPath, "#!/bin/sh\nexit 0\n", "utf8");
@@ -279,7 +279,7 @@ describe("stageRelease", () => {
 
     const launcher = await readFile(join(releaseDir, "bin", "zcode"), "utf8");
     expect(launcher).toContain('"$DIR/runtime/node"');
-    expect(launcher).toContain('"$DIR/runtime/server-cli.js"');
+    expect(launcher).toContain('"$DIR/runtime/riddi-server.js"');
     const launcherStat = await stat(join(releaseDir, "bin", "zcode"));
     // Bugfix: NTFS 不保留 POSIX exec 位（Windows 上 stat.mode 恒无 0o111 位），
     // 可执行性断言只在 POSIX 宿主上生效；Windows 宿主仍验证文件存在与内容。
@@ -291,9 +291,9 @@ describe("stageRelease", () => {
     expect(runtimePackageJson.type).toBe("module");
 
     for (const relativePath of [
-      "runtime/server-cli.js",
+      "runtime/riddi-server.js",
       "runtime/server-core.js",
-      "runtime/zcode.cjs",
+      "runtime/riddi.cjs",
       "runtime/node",
       "runtime/node_modules/fake-dep/package.json",
       "runtime/node_modules/fake-transitive/package.json",
@@ -347,9 +347,9 @@ describe("stageRelease", () => {
     expect(manifest.appVersion).toBe("9.9.9-test");
     expect(manifest.nodeVersion).toBe("22.16.0");
     expect(manifest.entrypoints).toEqual({
-      cli: "runtime/server-cli.js",
+      cli: "runtime/riddi-server.js",
       core: "runtime/server-core.js",
-      agent: "runtime/zcode.cjs",
+      agent: "runtime/riddi.cjs",
     });
 
     expect(staged.packagedDependencies).toEqual(["fake-dep", "fake-transitive", "node-pty"]);
@@ -932,7 +932,7 @@ describe("stageRelease", () => {
       expect(
         JSON.parse(await readFile(join(installed.releaseDir, "manifest.json"), "utf8")),
       ).toEqual(expected);
-      expect(await readFile(join(installed.releaseDir, "runtime", "zcode.cjs"))).toEqual(
+      expect(await readFile(join(installed.releaseDir, "runtime", "riddi.cjs"))).toEqual(
         await readFile(fixture.agentBundlePath),
       );
     },

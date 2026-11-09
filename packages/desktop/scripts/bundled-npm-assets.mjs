@@ -16,7 +16,7 @@ import { extractPrebuiltArchive } from "../../../scripts/prebuilt-binary-extract
 export const BUNDLED_NPM_VERSION = "12.2.0";
 export const BUNDLED_NPM_INTEGRITY =
   "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ==";
-/** 相对 glm 目录（zcode.cjs 所在目录）的位置；与 bootstrap mcp-node-fallback.ts 同一约定。 */
+/** 相对 glm 目录（riddi.cjs 所在目录）的位置；与 bootstrap mcp-node-fallback.ts 同一约定。 */
 export const BUNDLED_NPM_STAGED_SEGMENTS = ["node-runtime", "npm"];
 const NPM_REGISTRY_TARBALL_BASE = "https://registry.npmjs.org/npm/-/";
 const NPM_TARBALL_PACKAGE_DIR = "package";

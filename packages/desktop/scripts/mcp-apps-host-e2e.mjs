@@ -225,7 +225,7 @@ for (const mode of modes) {
             output,
             join(output, `${mode}-profile`),
             process.execPath,
-            join(root, "apps/zcode-cli/packages/cli/dist/zcode.cjs"),
+            join(root, "apps/zcode-cli/packages/cli/dist/riddi.cjs"),
             showcaseServer ?? "",
           ]
         : mode === "managed-empty"

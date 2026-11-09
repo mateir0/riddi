@@ -42,7 +42,7 @@ export async function prepareVersionPolicyArchive(options: {
   // 元数据变体必须重新走完整包安装，不能复用原 server-runtime 组件摘要。
   delete manifest.components;
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
-  for (const file of ["server-core.js", "server-cli.js"]) {
+  for (const file of ["server-core.js", "riddi-server.js"]) {
     const path = join(work, top, "runtime", file);
     let source = await readFile(path, "utf8");
     let versionCount = 0;

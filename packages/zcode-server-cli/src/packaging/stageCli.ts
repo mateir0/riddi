@@ -138,7 +138,7 @@ async function ensureNodeBinary(repoRoot: string, target: ServerTarget): Promise
 }
 
 async function ensureAgentBundle(repoRoot: string, skipBuild: boolean): Promise<string> {
-  const bundlePath = join(repoRoot, "apps/zcode-cli/packages/cli/dist/zcode.cjs");
+  const bundlePath = join(repoRoot, "apps/zcode-cli/packages/cli/dist/riddi.cjs");
   if (skipBuild) {
     if (await pathExists(bundlePath)) return bundlePath;
     throw new Error(`Agent bundle missing: ${bundlePath} (remove --skip-agent-build to build it)`);
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
   ]);
 
   const distDir = join(packageRoot, "dist");
-  if (!(await pathExists(join(distDir, "server-cli.js")))) {
+  if (!(await pathExists(join(distDir, "riddi-server.js")))) {
     throw new Error(
       `Missing tsup output in ${distDir}; run pnpm --filter @zcode/server-cli build first`,
     );

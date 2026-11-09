@@ -155,7 +155,7 @@ export async function createBotWorkerIntegration(baseUrl: string, dropTextContai
       commandResolver: () => ({
         command: process.execPath,
         args: [
-          resolve("../../apps/zcode-cli/packages/cli/dist/zcode.cjs"),
+          resolve("../../apps/zcode-cli/packages/cli/dist/riddi.cjs"),
           "app-server",
           "--stdio",
         ],

@@ -1,5 +1,5 @@
 import { useRequestVerificationPrewarm } from "@/request-security-edition/claim.js";
-import { createContext, useContext, useEffect, useCallback, useState, useRef } from "react";
+import { createContext, useContext, useEffect, useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
 import { useTabStore, useTabStoreApi } from "@/store/TabStoreProvider.js";

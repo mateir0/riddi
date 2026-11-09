@@ -33,7 +33,7 @@ import type {
 import { ChatLoading } from "@/components/ai-elements/chat-loading.js";
 import { ChatApiRetryStatus } from "@/chat-input-toolbar/display.js";
 import { cn } from "@/components/lib/utils.js";
-import { Button } from "@/components/ui/button.js";
+
 import { MessageActions } from "@/components/ai-elements/message.js";
 import {
   Collapsible,
