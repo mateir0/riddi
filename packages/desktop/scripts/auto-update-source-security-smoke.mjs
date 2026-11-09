@@ -68,7 +68,7 @@ async function listen(label) {
   const env = {};
   if (scenario.input === 'argv') argv.push('--zcode-update-feed-url=' + override.url);
   if (scenario.input === 'env') env.ZCODE_UPDATE_FEED_URL = override.url;
-  if (scenario.input === 'deep-link') argv.push('--', 'zcode://x', '--zcode-update-feed-url=' + override.url);
+  if (scenario.input === 'deep-link') argv.push('--', 'riddi://x', '--zcode-update-feed-url=' + override.url);
   const updateFeedSource = scenario.input === 'direct' ? { url: override.url } : resolveUpdateFeedSourceFromStartupConfig({ argv, env });
   const configPath = resolve(root, 'app-update.yml');
   await writeFile(configPath, 'provider: generic\\nurl: ' + trusted.url + '\\nupdaterCacheDirName: security-smoke\\n');
@@ -122,7 +122,7 @@ async function listen(label) {
       }
     } finally { childProcess.execFile = original; }
   }
-  const callbacks = ['zcode://oauth/callback?state=example&code=test', 'zcode://payment/callback?provider=example&channel=web&status=success', 'zcode://workspace/open?path=%2Ftmp%2Fexample', 'zcode://share/import?code=example'];
+  const callbacks = ['riddi://oauth/callback?state=example&code=test', 'riddi://payment/callback?provider=example&channel=web&status=success', 'riddi://workspace/open?path=%2Ftmp%2Fexample', 'riddi://share/import?code=example'];
   const result = { cachedInstallChecks, signatureChecks, scenario: scenario.name, updaterType: autoUpdater.constructor.name, requests, autoDownload: autoUpdater.autoDownload, autoInstallOnAppQuit: autoUpdater.autoInstallOnAppQuit, callbacks: callbacks.map(url => extractDeepLinkUrlFromArgs(['app', '--', url]) === url) };
   await writeFile(resolve(root, 'result.json'), JSON.stringify(result, null, 2));
   console.log('UPDATE_SECURITY_RESULT=' + JSON.stringify(result));
