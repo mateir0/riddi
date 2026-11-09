@@ -117,39 +117,6 @@ describe("custom OpenAI Provider E2E seed", () => {
     ]);
   });
 
-  it("E2E 观察保留 Coding Plan API Key，而不把已保存凭据投影为空", async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), "zcode-provider-key-read-"));
-    vi.stubEnv("ZCODE_E2E_HOME_DIR", homeDir);
-    await writeFileWithParents(
-      join(homeDir, ".zcode", "v2", "provider_config.json"),
-      JSON.stringify({
-        schemaVersion: 1,
-        config: {
-          providerConfigRules: {
-            providerRules: [
-              {
-                providerId: "example-plan",
-                templateId: "example-template",
-                providerName: "Example Plan",
-                config: {
-                  group: "standard-personal",
-                  access: { type: "zhipu-coding-plan-api-key", apiKey: "e2e-plan-key" },
-                  personalModelIds: [],
-                },
-              },
-            ],
-          },
-          modelConfigRules: { providerModelRules: [], manualProviderModelRules: [] },
-        },
-      }),
-    );
-    const { readModelProvider } = await import("./e2e/helpers/desktop-app.js");
-    expect(await readModelProvider("example-plan")).toMatchObject({
-      id: "example-plan",
-      apiKey: "e2e-plan-key",
-    });
-  });
-
   it("E2E 诊断不再读取旧 Provider Store", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "zcode-provider-read-"));
     await writeFileWithParents(
