@@ -277,10 +277,10 @@ describe("stageRelease", () => {
     const releaseDir = staged.releaseDir;
     expect(releaseDir.endsWith("zcode-server-linux-x64")).toBe(true);
 
-    const launcher = await readFile(join(releaseDir, "bin", "zcode"), "utf8");
+    const launcher = await readFile(join(releaseDir, "bin", "riddi-server"), "utf8");
     expect(launcher).toContain('"$DIR/runtime/node"');
     expect(launcher).toContain('"$DIR/runtime/riddi-server.js"');
-    const launcherStat = await stat(join(releaseDir, "bin", "zcode"));
+    const launcherStat = await stat(join(releaseDir, "bin", "riddi-server"));
     // Bugfix: NTFS 不保留 POSIX exec 位（Windows 上 stat.mode 恒无 0o111 位），
     // 可执行性断言只在 POSIX 宿主上生效；Windows 宿主仍验证文件存在与内容。
     if (process.platform !== "win32") expect(launcherStat.mode & 0o111).not.toBe(0);
@@ -433,7 +433,7 @@ describe("stageRelease", () => {
       ...fixture,
     });
     expect(staged.archivePath).toMatch(/\.zip$/u);
-    expect(await readFile(join(staged.releaseDir, "bin", "zcode.cmd"), "utf8")).toContain(
+    expect(await readFile(join(staged.releaseDir, "bin", "riddi-server.cmd"), "utf8")).toContain(
       "node.exe",
     );
     await expect(stat(join(staged.releaseDir, "runtime", "node.exe"))).resolves.toBeTruthy();

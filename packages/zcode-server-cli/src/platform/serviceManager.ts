@@ -33,7 +33,7 @@ export function createDaemonServiceDescriptor(options: {
     platform: options.platform,
     command: join(
       options.layout.stableBinDir,
-      options.platform === "win32" ? "zcode.cmd" : "zcode",
+      options.platform === "win32" ? "riddi-server.cmd" : "riddi-server",
     ),
     args: ["serve", "--supervisor", "--service-entry", "--server-root", options.layout.serverRoot],
     name: `dev.riddi.server.${stablePathId(options.layout.serverRoot)}`,

@@ -43,7 +43,7 @@ async function resolveLegacyServiceRegistration(layout: ServerLayout): Promise<{
   return {
     descriptor: createServiceDescriptor({
       platform,
-      command: join(layout.stableBinDir, platform === "win32" ? "zcode.cmd" : "zcode"),
+      command: join(layout.stableBinDir, platform === "win32" ? "riddi-server.cmd" : "riddi-server"),
       args: ["serve", "--supervisor", "--server-root", layout.serverRoot],
     }),
     descriptorPath,

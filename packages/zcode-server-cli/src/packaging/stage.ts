@@ -314,7 +314,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
   const launcherPath = join(
     releaseDir,
     "bin",
-    options.target.startsWith("win32-") ? "zcode.cmd" : "zcode",
+    options.target.startsWith("win32-") ? "riddi-server.cmd" : "riddi-server",
   );
   await writeFile(launcherPath, POSIX_LAUNCHER, "utf8");
   if (options.target.startsWith("win32-")) {

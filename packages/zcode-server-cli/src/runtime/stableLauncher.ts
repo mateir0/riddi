@@ -65,7 +65,7 @@ export async function writeStableLauncher(
   bootstrap?: StableLauncherBootstrap,
 ): Promise<string> {
   await mkdir(layout.stableBinDir, { recursive: true, mode: 0o700 });
-  const launcherPath = join(layout.stableBinDir, platform === "win32" ? "zcode.cmd" : "zcode");
+  const launcherPath = join(layout.stableBinDir, platform === "win32" ? "riddi-server.cmd" : "riddi-server");
   const temporaryPath = `${launcherPath}.${process.pid}.${randomUUID()}.tmp`;
   await writeFile(
     temporaryPath,
