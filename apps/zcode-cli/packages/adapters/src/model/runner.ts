@@ -83,6 +83,8 @@ export interface CreateAiSdkModelOptions {
   displayName?: string;
   options?: ModelOptions;
   requestDependencies?: ModelRequestDependencies;
+  /** Template ID of the provider (e.g., "nvidia-nim"), used for template-specific credential resolution. */
+  templateId?: string;
 }
 
 export class AiSdkModelAdapter {
@@ -158,6 +160,7 @@ export class AiSdkModelAdapter {
       providerConfig: options.providerConfig,
       supportsJsonSchemaOutput: options.modelConfig.properties.supportsJsonSchemaOutput,
       optionSpecs: options.modelConfig.optionSpecs,
+      templateId: options.templateId,
     });
     const properties = options.modelConfig.properties;
     const resolved = {

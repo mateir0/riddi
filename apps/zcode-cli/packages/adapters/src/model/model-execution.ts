@@ -207,6 +207,8 @@ export class AiSdkModelExecution {
       readonly reasoningLevel: { readonly map: string };
       readonly maxOutputTokens: { readonly map: string };
     };
+    /** Template ID of the provider (e.g., "nvidia-nim"), used for template-specific credential resolution. */
+    readonly templateId?: string;
   }): AiSdkBoundModelResolution {
     const snapshot = this.captureModelSnapshot(input);
     const optionMaps = compileModelOptionMaps(input.optionSpecs);
@@ -223,8 +225,9 @@ export class AiSdkModelExecution {
     readonly modelId: string;
     readonly providerConfig: RegistryProviderConfig;
     readonly supportsJsonSchemaOutput: boolean;
+    readonly templateId?: string;
   }): AiSdkModelSnapshot {
-    const configuredProvider = toAiSdkProviderConfig(input.providerId, input.providerConfig);
+    const configuredProvider = toAiSdkProviderConfig(input.providerId, input.providerConfig, input.templateId);
     // 重构后模型 SDK 曾只接到用户 Header，漏掉版本和站点归因；在公共绑定边界恢复，
     // 不依赖签名成功，不给各业务重复补头，也不修改 Provider 或已绑定 Model 的配置。
     configuredProvider.headers = mergeModelRequestHeaders(
@@ -398,9 +401,22 @@ interface AiSdkModelSnapshot {
 function toAiSdkProviderConfig(
   providerId: string,
   config: RegistryProviderConfig,
+  templateId?: string,
 ): AiSdkProviderConfig {
+  // Credential resolution for template-based providers:
+  // - For "nvidia-nim" template: stored key always wins; only when NO stored key exists,
+  //   fall back to process.env.NVIDIA_API_KEY (trimmed; empty or whitespace-only = absent).
+  // - The env value is NEVER written to credential storage, provider config files, or logs.
+  // - Read at resolution time only.
+  let apiKey = config.access.apiKey;
+  if (templateId === "nvidia-nim" && (!apiKey || apiKey.trim().length === 0)) {
+    const envKey = process.env.NVIDIA_API_KEY?.trim();
+    if (envKey && envKey.length > 0) {
+      apiKey = envKey;
+    }
+  }
   const common = {
-    ...(config.access.apiKey ? { apiKey: config.access.apiKey } : {}),
+    ...(apiKey ? { apiKey } : {}),
     baseURL: config.api.baseUrl,
     ...(config.api.headers ? { headers: { ...config.api.headers } } : {}),
     providerOptions: { apiFormat: config.api.type },

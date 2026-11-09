@@ -79,6 +79,7 @@ export class ApiProviderModelRuntime {
       options: {
         reasoningLevel: normalReasoningLevel,
       },
+      templateId: provider.templateId ?? undefined,
     });
   }
 }

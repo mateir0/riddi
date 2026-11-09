@@ -7,6 +7,10 @@ import {
   ProviderBusinessError,
   createProviderBusinessErrorFetch,
   observeProviderFetch,
+  type AiSdkModelExecutionConfig,
+  type AiSdkModelExecutionOptions,
+  type AiSdkResolvedModel,
+  AiSdkModelExecution,
 } from "../src/model/model-execution.js";
 import { TestProviderConfigFixture } from "./test-provider-config.js";
 
