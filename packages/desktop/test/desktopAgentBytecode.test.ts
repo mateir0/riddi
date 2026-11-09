@@ -47,7 +47,13 @@ process.stdout.write(JSON.stringify({value, args:process.argv.slice(2),
     dynamic: 7,
     hasDynamicSource: true,
   });
-  expect(result.stderr).toBe("");
+  // Windows Electron crashpad 会向 stderr 输出注册错误，不影响功能；过滤后断言 stderr 为空。
+  const stderrFiltered = result.stderr
+    .split("\n")
+    .filter((line) => !line.includes("crashpad") && !line.includes("registration_protocol_win"))
+    .join("\n")
+    .trim();
+  expect(stderrFiltered).toBe("");
   expect(await readFile(entryPath, "utf8")).toContain("不应出现在字节码产物中的源码注释");
   expect(
     (await readFile(artifact.bytecodePath)).includes(
