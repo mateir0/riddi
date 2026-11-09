@@ -140,8 +140,6 @@ function liveStatusFromMeta(meta: ZCodeTaskMeta): WindowHostControllerTaskRow["l
  * 对应 source 的 tasks-index 重建投影，断连时只冻结最后一次成功的内存快照。
  */
 export function createWindowHostControllerRuntime(options: {
-  onRunStarted?: (run: import("@zcode/shared/web-remote-relay").MobilePushRun) => void;
-  onNotification?: (event: import("@zcode/shared/web-remote-relay").MobilePushEvent) => void;
   createId: () => string;
   readHostTaskList: IZCodeTaskService["listTaskList"];
   resolveSource: (scope: ZCodeTaskListWorkspaceScope) => ResolvedWindowHostControllerSource | null;
@@ -214,20 +212,6 @@ export function createWindowHostControllerRuntime(options: {
         ...(resolved.scope.workspaceIdentity
           ? { workspaceIdentity: resolved.scope.workspaceIdentity }
           : {}),
-      },
-      onRunStarted: (run) => {
-        if (
-          sourceSessionObservers.get(key)?.observer === observer &&
-          sourceAvailability.get(key) === "online"
-        )
-          options.onRunStarted?.(run);
-      },
-      onNotification: (event) => {
-        if (
-          sourceSessionObservers.get(key)?.observer === observer &&
-          sourceAvailability.get(key) === "online"
-        )
-          options.onNotification?.(event);
       },
       onSessionsChange: (sessions) => {
         if (sourceSessionObservers.get(key)?.observer !== observer) return;

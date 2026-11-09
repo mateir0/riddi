@@ -1178,16 +1178,18 @@ test("command center localizes the Coding Plan setup picker", async () => {
   assert.equal(result.selection?.items[2]?.input?.placeholder, "粘贴 API key");
 });
 
-test("command center keeps local commands usable before login", async () => {
+test("command center submits normal prompts straight to the app", async () => {
   let appCreated = false;
   const commandCenter = createCommandCenter({
     getApp: async () => {
       appCreated = true;
-      throw new Error("app should not be created before login");
+      return {
+        sessionId: "session-1",
+        traceId: "trace-1",
+        submitPrompt: async () => ({ response: "ok" }),
+      };
     },
     getLocale: () => "en-US",
-    // 登录判定改为“是否存在可选模型”，由注入的检查器回答，命令中心自身不创建 App。
-    hasSelectableModels: async () => false,
     resumeApp: async () => {
       throw new Error("resume should not be called");
     },
@@ -1200,23 +1202,11 @@ test("command center keeps local commands usable before login", async () => {
   const promptResult = await commandCenter("hello model", {});
   const localeResult = await commandCenter("/locale zh-CN", {});
 
-  assert.equal(promptResult.loginRequired, true);
-  assert.match(promptResult.response, /No available models/);
+  assert.equal(promptResult.loginRequired, undefined);
+  assert.equal(promptResult.response, "ok");
   assert.equal(localeResult.locale, "zh-CN");
   assert.match(localeResult.response, /Locale switched to zh-CN/);
-  assert.equal(appCreated, false);
-
-  const zhCommandCenter = createCommandCenter({
-    getApp: async () => {
-      throw new Error("app should not be created before login");
-    },
-    getLocale: () => "zh-CN",
-    hasSelectableModels: async () => false,
-  });
-  const zhPromptResult = await zhCommandCenter("hello model", {});
-
-  assert.equal(zhPromptResult.loginRequired, true);
-  assert.match(zhPromptResult.response, /没有可用模型/);
+  assert.equal(appCreated, true);
 });
 
 const reviewCustomCommand = {

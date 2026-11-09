@@ -12,18 +12,14 @@ import { Emitter } from "@zcode/rpc";
 import { arch, platform, release, type as osType } from "node:os";
 
 import type { ICredentialService } from "../credential/credential.js";
-import type { IOAuthService } from "../oauth/oauth.js";
 import type { FeedbackUploadProgress, IFeedbackService } from "./feedback.js";
 import { FeedbackHttpClient, FeedbackUploadCanceledError } from "./feedbackHttpClient.js";
 import { cleanupLogArchive, prepareCompactLogArchive } from "./compactLogArchive.js";
 import { getFeedbackAttachmentDir } from "../paths.js";
 import { FeedbackLocalTicketStore } from "#src/feedback/feedbackLocalTicketStore.js";
 
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
-
 export interface CreateFeedbackServiceOptions {
   credentialService: ICredentialService;
-  oauthService: IOAuthService;
   apiClient: ApiClient;
   getDeviceMid?: () => string | undefined;
   apiBaseUrl?: string;
@@ -74,7 +70,7 @@ export function createFeedbackService(options: CreateFeedbackServiceOptions): IF
   }
 
   async function getZcodeJwtToken(): Promise<string | undefined> {
-    return (await options.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim() || undefined;
+    return (await options.credentialService.load("zcodejwttoken"))?.trim() || undefined;
   }
 
   async function hasZcodeJwtToken(): Promise<boolean> {

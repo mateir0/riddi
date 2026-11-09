@@ -1522,3 +1522,12 @@ exceptions:
       - packages/ui/src/hooks/useDynamicWorkflowAvailability.ts
       - packages/ui/src/request-security-edition/claim.ts
     reason: Riddi 移除 Zhipu 商业面时，这三个既有 UI 文件分别去掉营销弹窗的商业接线、把动态工作流可用性改由本地 shared 解析、并保留请求安全声明入口；owner 与模块边界不变，接管整个 ui 包不在本次范围内。
+  - id: riddi-oauth-removal-unmanaged-files
+    rule: unmanaged-new-file
+    paths:
+      - packages/ui/src/root/webRemoteControlContracts.ts
+      - packages/ui/src/settings/model-provider-section/providerFamilySpec.ts
+      - packages/ui/src/settings/model-provider-section/providerFamilyConnectionVisibility.ts
+      - apps/zcode-cli/packages/adapters/src/model/account-request-retry.ts
+      - apps/zcode-cli/packages/cli/src/tui-prompt-handler-runtime.ts
+    reason: Riddi 完成 OAuth / 账号 Provider / 远控删除时，这三个 UI 叶子文件只保留与厂商无关的移动端布局与 Provider Family 纯数据/展示规则，两个 CLI 文件是既有适配层与 TUI runtime 的非账号路径（项目令牌刷新只在删除后的恢复链内保留）；owner、依赖方向与模块边界不变，接管整个 ui 或 zcode-cli 包不在本次范围内。

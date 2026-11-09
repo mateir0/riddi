@@ -2,7 +2,6 @@ import { useRequestVerificationPrewarm } from "@/request-security-edition/claim.
 import { createContext, useContext, useEffect, useCallback, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
-import { useOpenRewards } from "@/rewards/RewardsProvider.js";
 import { useTabStore, useTabStoreApi } from "@/store/TabStoreProvider.js";
 import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
 import { requestPluginStoreOpen } from "@/lib/pluginStoreNavigation.js";
@@ -57,9 +56,6 @@ export function MarketingTouchProvider({
   const user = useZCodeStore((state) => state.user);
   const restoring = useZCodeStore((state) => state.isRestoringOAuthSession);
   const requestLogin = useZCodeStore((state) => state.requestLoginEntry);
-  const openRewards = useOpenRewards();
-  const openRewardsRef = useRef(openRewards);
-  openRewardsRef.current = openRewards;
   const { intl, locale } = useZCodeIntl();
   const identity = user?.id ?? "anonymous";
   const createRuntime = useCallback(() => {
@@ -133,11 +129,8 @@ export function MarketingTouchProvider({
               signal.throwIfAborted();
               if (!controller.store.getState().dialog)
                 toast(intl.formatMessage({ id: "manualClaimPlan.claim.share.copyTextSucceeded" }));
-            } else if (action.args.page === "rewards") {
-              // 只确认窗口级 Provider 接收意图；登录续接不依赖会在账号变化时销毁的营销实例。
-              if (!openRewardsRef.current) throw new Error("marketing_navigation_unavailable");
-              await openRewardsRef.current();
             } else {
+              // 0.9.1：Rewards 页面托管在 Z.ai 账号域，已随账号链路整体下线。
               const opening = new AbortController();
               const abortOpening = () => opening.abort();
               signal.addEventListener("abort", abortOpening, { once: true });

@@ -266,7 +266,6 @@ export class AiSdkModelExecution {
       rawRequestBodyCapture,
       streamTiming,
       snapshot.supportsJsonSchemaOutput,
-      snapshot.providerConfig.access?.type === "zhipu-account" ? requestAuth?.apiKeyId : undefined,
     );
     return {
       baseURL: providerConfig.baseURL,
@@ -290,7 +289,6 @@ export class AiSdkModelExecution {
     rawRequestBodyCapture: RawRequestBodyCapture,
     streamTiming: NonNullable<AiSdkResolvedModel["streamTiming"]>,
     supportsJsonSchemaOutput: boolean,
-    apiKeyId?: string,
   ): LanguageModelFactory {
     const apiKey = this.resolveApiKey(providerConfig);
     // SDK 会合并 factory 默认 header；必须在这里去掉静态来源，才能保证缺失时真正省略。
@@ -305,7 +303,6 @@ export class AiSdkModelExecution {
       ? createProviderEndpointRoutingFetch({
           fetch: networkTransport,
           routingPort: this.endpointRoutingPort,
-          apiKeyId,
         })
       : networkTransport;
     const requestTransport = this.requestSecurity.protectTransport({
@@ -403,9 +400,7 @@ function toAiSdkProviderConfig(
   config: RegistryProviderConfig,
 ): AiSdkProviderConfig {
   const common = {
-    ...(config.access.type !== "zhipu-account" && config.access.apiKey
-      ? { apiKey: config.access.apiKey }
-      : {}),
+    ...(config.access.apiKey ? { apiKey: config.access.apiKey } : {}),
     baseURL: config.api.baseUrl,
     ...(config.api.headers ? { headers: { ...config.api.headers } } : {}),
     providerOptions: { apiFormat: config.api.type },
@@ -428,11 +423,7 @@ function applyModelRequestAuth(
 ): AiSdkProviderConfig {
   if (!requestAuth) return providerConfig;
   const staticHeaders = withoutRequestVerificationHeaders(providerConfig.headers);
-  // 账号动态身份头必须先清理静态认证头，避免 SDK 优先使用旧凭据。
-  const headers =
-    providerConfig.access.type === "zhipu-account"
-      ? withoutModelAuthHeaders(staticHeaders)
-      : staticHeaders;
+  const headers = staticHeaders;
   return {
     ...providerConfig,
     ...(requestAuth.apiKey ? { apiKey: requestAuth.apiKey } : {}),

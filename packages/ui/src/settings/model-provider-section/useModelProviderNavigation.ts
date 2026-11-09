@@ -10,10 +10,12 @@ import type {
 import {
   BUILTIN_MODEL_PROVIDER_IDS,
   isStartPlanModelProviderId,
-  resolveModelProviderFamilySpecByProviderId,
-  resolveProviderFamilyDomainFromOAuthProvider,
   type OAuthProviderId,
 } from "@zcode/shared";
+import {
+  resolveModelProviderFamilySpecByProviderId,
+  resolveProviderFamilyDomainFromOAuthProvider,
+} from "@/settings/model-provider-section/providerFamilySpec.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   CODING_PLAN_PROVIDER_SPECS,
@@ -21,7 +23,6 @@ import {
   type ModelProviderNavGroup,
   type PresetProviderSpec,
 } from "@/settings/model-provider-section/constants.js";
-import { pickCodingPlanEntitlementProvider } from "@/lib/codingPlanProvider.js";
 import {
   createCodingPlanProviderNodeKey,
   createCustomProviderNodeKey,
@@ -96,13 +97,14 @@ export function useModelProviderNavigation({
       ).map((spec) => {
         const provider = modelProviders.find((item) => item.providerId === spec.id) ?? null;
         const accountEntitled = entitledAccountProviderIds.has(spec.id);
-        const entitlementProvider = pickCodingPlanEntitlementProvider(provider);
+        // 0.9.2：账号 / 套餐权益查询已下线，套餐条目恒为空。
+        const entitlementProvider = provider;
         const entitlement = codingPlanEntitlements[spec.id];
         const state = resolveCodingPlanEntitlementState({
           providerId: spec.id,
           accountEntitled,
-          accountAvailability: provider?.accountState?.availability,
-          accountUnavailableReason: provider?.accountState?.unavailableReason,
+          accountAvailability: undefined,
+          accountUnavailableReason: undefined,
           entitlement,
           modelProvidersLoading,
         });

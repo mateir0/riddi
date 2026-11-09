@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createGenerateTextOptions,
   createStreamTextOptions,
-  shouldIncludeStreamResponseBody,
 } from "../src/model/runner-options.js";
 import { isOpenCodeGoBaseUrl } from "../src/model/opencode-session.js";
 import type { ResolvedAiSdkModel } from "../src/model/runner-runtime.js";
@@ -15,18 +14,6 @@ describe("shouldIncludeStreamResponseBody", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
-  });
-
-  it("enables responseBody capture for zcode-plan openai-compatible providers", () => {
-    expect(
-      shouldIncludeStreamResponseBody(
-        resolved({
-          providerKind: "openai-compatible",
-          baseURL: "https://zcode.z.ai/api/v1/zcode-plan",
-          accountAccess: { mode: "start-plan" } as ResolvedAiSdkModel["accountAccess"],
-        }),
-      ),
-    ).toBe(true);
   });
 
   it("skips responseBody capture for unrelated providers", () => {
@@ -301,32 +288,6 @@ describe("createStreamTextOptions", () => {
       expect(options.providerOptions).toBeUndefined();
     },
   );
-
-  it("passes experimental_include.responseBody for zcode-plan streams", () => {
-    const options = createStreamTextOptions({
-      includeModelIO: false,
-      request: {
-        messages: [{ role: "user", content: "hi" }],
-      },
-      resolved: resolved({
-        model: {} as ResolvedAiSdkModel["model"],
-        providerId: "builtin:zai-coding-plan",
-        modelId: "glm-5.1",
-        providerKind: "openai-compatible",
-        baseURL: "https://zcode.z.ai/api/v1/zcode-plan",
-        accountAccess: { mode: "start-plan" } as ResolvedAiSdkModel["accountAccess"],
-      }),
-      statusContext: {
-        model: { providerId: "builtin:zai-coding-plan", modelId: "glm-5.1" },
-        providerKind: "openai-compatible",
-        requestId: "req_test",
-        sessionId: "sess_test",
-        traceId: "trace_test",
-      } as never,
-    });
-
-    expect(options.experimental_include).toEqual({ responseBody: true });
-  });
 
   it("uses merged Responses provider options while transforming history", () => {
     const toolCallId = "call_read";

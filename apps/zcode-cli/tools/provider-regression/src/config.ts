@@ -89,7 +89,6 @@ export async function loadConfiguration(providersFile: string, listFile: string)
   const secrets: string[] = [];
   const rules = original.toJSON().map((rule) => {
     const access = rule.config.access;
-    if (access?.type === "zhipu-account") throw new Error("此测试入口只支持 API Key Provider");
     const key = access?.apiKey?.trim();
     if (key) secrets.push(key);
     else missingKeys.add(rule.providerId);
@@ -117,7 +116,6 @@ export async function loadConfiguration(providersFile: string, listFile: string)
       config.modelConfigRules === undefined
         ? ModelConfigRules.empty()
         : parsePersonalModelConfigRules(config.modelConfigRules),
-    accountProviders: ProviderConfigMap.empty(),
   });
   if (resolution.issues.length)
     throw new Error(

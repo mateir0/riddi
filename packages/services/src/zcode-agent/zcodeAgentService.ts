@@ -62,11 +62,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { Emitter } from "@zcode/rpc";
 import type { IDisposable } from "@zcode/rpc";
-import type {
-  AccountProviderConfigSnapshot,
-  ModelSelectionView,
-  ProviderSource,
-} from "@zcode/provider";
+import type { ModelSelectionView } from "@zcode/provider";
 import { completeNewModelSelection } from "@zcode/provider";
 // Coding Plan 订阅模块已随商业经济删除；OffPeakClientConfig 只是宿主协议 handler 的
 // 可选灰度入参形状（注入方已不存在，handler 恒走未启用分支），就地保留类型定义。
@@ -199,10 +195,6 @@ import {
 } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { createOfficialMcpIssuanceAudit } from "#src/official-mcp/officialMcpIssuanceAudit.js";
-import type {
-  AccountRequestAuthMaterial,
-  IAccountRequestAuthService,
-} from "#src/model-provider/accountRequestAuthService.js";
 import {
   mergeAutomationMutationToolDenylist,
   mergeOffPeakMutationToolDenylist,
@@ -1097,17 +1089,7 @@ function describeVerificationConfigError(cause: unknown): {
   };
 }
 
-// 账号鉴权先用配置快照判定 Start Plan 是否需要界面验证；只注入服务会让每个
-// Start Plan 请求都在运行时失败且没有装配期提示，因此两者必须成对注入。
-type AccountRequestAuthOptions =
-  | { accountRequestAuthService?: undefined; readRequestVerificationConfig?: undefined }
-  | {
-      accountRequestAuthService: IAccountRequestAuthService;
-      readRequestVerificationConfig: () => Promise<RequestVerificationConfig | null>;
-    };
-
-type CreateZCodeAgentServiceOptions = CreateZCodeAgentServiceBaseOptions &
-  AccountRequestAuthOptions;
+type CreateZCodeAgentServiceOptions = CreateZCodeAgentServiceBaseOptions;
 
 interface CreateZCodeAgentServiceBaseOptions extends Omit<
   ZCodeAgentProcessManagerOptions,
@@ -1115,7 +1097,8 @@ interface CreateZCodeAgentServiceBaseOptions extends Omit<
 > {
   /** 仅供 MCP 状态探测进程使用，不能把空闲回收传给 chat。 */
   mcpStatusIdleTimeoutMs?: number;
-  accountProviderConfigSource?: ProviderSource<AccountProviderConfigSnapshot>;
+  /** 账号链路删除后恒为空；保留入参以维持 protocol handler 的稳定形状。 */
+  readRequestVerificationConfig?: () => Promise<RequestVerificationConfig | null>;
   /** Desktop Host 请求 Main 登记 Agent 已授权的精确本地视频路径。 */
   authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
   modelSelectionReadinessSource?: ModelSelectionReadinessSource;
@@ -1614,12 +1597,7 @@ export function createZCodeAgentService(
     }
     waitingWorkspaceStartups.clear();
   }
-  const accountConfigSyncByClient = new WeakMap<ZCodeProtocolClient, Promise<void>>();
-  // 此缓存只去重已交付的账号快照，不表示 Worker 的 Registry 已应用该版本。
-  const accountConfigReceivedRevisionByClient = new WeakMap<ZCodeProtocolClient, string>();
   const sessionTraceIdBySessionKey = new Map<string, TraceId>();
-  const accountRequestAuthService = options?.accountRequestAuthService;
-  const accountProviderConfigSource = options?.accountProviderConfigSource;
   const modelSelectionReadinessSource = options?.modelSelectionReadinessSource;
   const sessionRuntimePreferencesAuthority = options?.sessionRuntimePreferencesAuthority ?? "local";
   const resolveSessionRuntimePreferences = options?.resolveSessionRuntimePreferences;
@@ -1675,66 +1653,6 @@ export function createZCodeAgentService(
     invalidateWorkspaceClient(event.workspaceKey, active.client);
   });
 
-  async function resolveAccountRequestAuth(
-    request: ZCodeProviderRuntimeHeadersRequestParams,
-  ): Promise<AccountRequestAuthMaterial | undefined> {
-    if (!request.accountAccess || !accountRequestAuthService) {
-      return undefined;
-    }
-    return accountRequestAuthService.resolveCurrent({
-      providerId: request.providerId,
-      modelId: request.modelSelection.modelId,
-      accountAccess: request.accountAccess,
-      expectedAccountScope: request.expectedAccountScope,
-      rejectedProjectTokenFingerprint: request.rejectedProjectTokenFingerprint,
-      reason: request.reason,
-    });
-  }
-
-  async function respondAccountRequestAuthWithoutInteraction(params: {
-    key: string;
-    pending: PendingProviderRuntimeHeadersRequest;
-  }): Promise<void> {
-    params.pending.responding = true;
-    try {
-      const requestAuth = await resolveAccountRequestAuth(params.pending.request);
-      // 账号解析是异步 IO；取消/进程退出后不能把迟到材料发给已撤销的请求。
-      if (pendingProviderRuntimeHeaders.get(params.key) !== params.pending) return;
-      if (!requestAuth) {
-        throw new Error("Account request auth resolver returned no material");
-      }
-      await params.pending.client.respond(params.pending.protocolRequestId, {
-        headersApplied: true,
-        requestAuth,
-      });
-      logger.info(undefined, "ZCode provider runtime headers 已应用", {
-        modelId: params.pending.request.modelSelection.modelId,
-        providerId: params.pending.request.providerId,
-        requestId: params.pending.request.requestId,
-        sessionId: params.pending.request.sessionId,
-        workspaceKey: resolveWorkspaceKey(params.pending.request.workspace),
-      });
-    } catch (error) {
-      if (pendingProviderRuntimeHeaders.get(params.key) !== params.pending) return;
-      logger.warn(undefined, "ZCode provider runtime headers 应用失败", {
-        modelId: params.pending.request.modelSelection.modelId,
-        providerId: params.pending.request.providerId,
-        requestId: params.pending.request.requestId,
-        sessionId: params.pending.request.sessionId,
-        error: error instanceof Error ? error.message : String(error),
-        workspaceKey: resolveWorkspaceKey(params.pending.request.workspace),
-      });
-      await params.pending.client.respond(params.pending.protocolRequestId, {
-        headersApplied: false,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      if (pendingProviderRuntimeHeaders.get(params.key) === params.pending) {
-        pendingProviderRuntimeHeaders.delete(params.key);
-      }
-    }
-  }
-
   async function routeProviderRuntimeHeadersRequest(
     key: string,
     pending: PendingProviderRuntimeHeadersRequest,
@@ -1770,14 +1688,6 @@ export function createZCodeAgentService(
         // 根因：关闭开关原来由 Renderer 判定，后台界面延迟也会耗尽鉴权 RPC 时限。
         // Host 绑定同一快照后再决定是否投递；跳过时直接复用账号鉴权，不等待界面。
         pending.request = { ...pending.request, requestVerificationConfig: config };
-      }
-      if (
-        accountRequestAuthService &&
-        access &&
-        !requiresRequestVerification(access, pending.request.requestVerificationConfig)
-      ) {
-        await respondAccountRequestAuthWithoutInteraction({ key, pending });
-        return;
       }
       if (!requestVerificationInteractionAvailable)
         throw new Error("Provider request auth is unavailable");
@@ -1879,99 +1789,14 @@ export function createZCodeAgentService(
       });
     });
   });
-  let accountProviderConfigUnsubscribe = accountProviderConfigSource?.onDidChange((reason) => {
-    void handleAccountProviderConfigChanged(reason).catch((error) => {
-      logger.warn(undefined, "account provider config 热同步失败", {
-        message: error instanceof Error ? error.message : String(error),
-        reason,
-      });
-    });
-  });
+  // 账号 Config Overlay 已随账号链路删除；Worker Registry 只由 Config Source 驱动。
 
-  async function syncAccountProviderConfigToClient(params: {
-    client: ZCodeProtocolClient;
-    reason: string;
-    refreshRegistry?: boolean;
-  }): Promise<void> {
-    if (!accountProviderConfigSource) return;
-    const previous = accountConfigSyncByClient.get(params.client) ?? Promise.resolve();
-    const current = previous
-      .catch(() => {
-        // 前一次失败不能阻断后续较新的 Account Config；当前调用会重新尝试。
-      })
-      .then(async () => {
-        // 排队前异步读取可能晚返回，把旧结果排在新结果之后。读取与交付
-        // 共用现有 Client 串行队列；不新增发送屏障，也不按内容 revision 猜测时间先后。
-        const snapshot = await accountProviderConfigSource.read();
-        if (accountConfigReceivedRevisionByClient.get(params.client) !== snapshot.revision) {
-          const result = await params.client.request(
-            zcodeProtocolMethods.providerUpdateAccountConfig,
-            {
-              revision: snapshot.revision,
-              basedOnZCodeBuiltinRevision: snapshot.basedOnZCodeBuiltinRevision,
-              // Account 是运行时事实信封，不是磁盘 Provider 规则集合；保持原有协议字典。
-              providers: Object.fromEntries(
-                [...snapshot.providers.entries()].map(([providerId, config]) => [
-                  providerId,
-                  config.toJSON(),
-                ]),
-              ),
-              states: snapshot.states ?? {},
-            },
-            zcodeProviderUpdateAccountConfigResultSchema,
-          );
-          if (result.receivedRevision !== snapshot.revision) {
-            throw new Error("Account Config 接收回执版本与交付版本不一致");
-          }
-          accountConfigReceivedRevisionByClient.set(params.client, result.receivedRevision);
-          logger.info(undefined, "account provider config 已交付到 ZCode agent", {
-            providerCount: result.providerCount,
-            reason: params.reason,
-            receivedRevision: result.receivedRevision,
-            status: result.status,
-          });
-        }
-        if (params.refreshRegistry) {
-          await params.client.request(
-            zcodeProtocolMethods.providerRefreshRegistry,
-            { reason: params.reason },
-            zcodeProviderRefreshRegistryResultSchema,
-          );
-        }
-      });
-    accountConfigSyncByClient.set(params.client, current);
-    try {
-      await current;
-    } finally {
-      if (accountConfigSyncByClient.get(params.client) === current) {
-        accountConfigSyncByClient.delete(params.client);
-      }
-    }
-  }
-
-  async function ensureAccountProviderConfigSynced(params: {
+  async function ensureAccountProviderConfigSynced(_params: {
     client: ZCodeProtocolClient;
     reason: string;
     workspace: ZCodeAgentWorkspaceTarget;
     refreshRegistry?: boolean;
-  }): Promise<void> {
-    await syncAccountProviderConfigToClient({
-      client: params.client,
-      reason: params.reason,
-      refreshRegistry: params.refreshRegistry,
-    });
-  }
-
-  async function handleAccountProviderConfigChanged(reason: string): Promise<void> {
-    await Promise.all(
-      Array.from(activeClientsByWorkspaceKey.values()).map(async (active) => {
-        await syncAccountProviderConfigToClient({
-          client: active.client,
-          reason,
-        });
-      }),
-    );
-  }
+  }): Promise<void> {}
 
   function enqueueInteractionPreferenceSync(params: {
     client: ZCodeProtocolClient;
@@ -4117,8 +3942,6 @@ export function createZCodeAgentService(
   }
 
   function disposeLocalState(): void {
-    accountProviderConfigUnsubscribe?.();
-    accountProviderConfigUnsubscribe = undefined;
     modelSelectionSubscription?.dispose();
     modelSelectionSubscription = undefined;
     memoryDiagnostics.dispose();
@@ -6250,51 +6073,15 @@ export function createZCodeAgentService(
         });
         return;
       }
-      let accountRequestAuth: AccountRequestAuthMaterial | undefined;
-      try {
-        accountRequestAuth = await resolveAccountRequestAuth(pending.request);
-      } catch (error) {
-        if (pendingProviderRuntimeHeaders.get(key) !== pending) return;
-        pendingProviderRuntimeHeaders.delete(key);
-        logger.warn(undefined, "ZCode provider runtime headers 应用失败", {
-          modelId: pending.request.modelSelection.modelId,
-          providerId: pending.request.providerId,
-          requestId: pending.request.requestId,
-          sessionId: pending.request.sessionId,
-          error: error instanceof Error ? error.message : String(error),
-          workspaceKey: resolveWorkspaceKey(pending.request.workspace),
-        });
-        await pending.client.respond(pending.protocolRequestId, {
-          headersApplied: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        });
-        return;
-      }
-      if (pendingProviderRuntimeHeaders.get(key) !== pending) return;
-      pendingProviderRuntimeHeaders.delete(key);
-      const requestHeaders = {
-        ...accountRequestAuth?.headers,
-      };
-      Object.assign(
-        requestHeaders,
-        allowRequestVerificationHeaders(params.response.runtimeProviderHeaders ?? {}),
+      const requestHeaders = allowRequestVerificationHeaders(
+        params.response.runtimeProviderHeaders ?? {},
       );
-      const requestAuth =
-        accountRequestAuth?.apiKey || Object.keys(requestHeaders).length > 0
-          ? {
-              ...(accountRequestAuth?.apiKey ? { apiKey: accountRequestAuth.apiKey } : {}),
-              ...(accountRequestAuth?.apiKeyId ? { apiKeyId: accountRequestAuth.apiKeyId } : {}),
-              ...(accountRequestAuth?.accountScope
-                ? { accountScope: accountRequestAuth.accountScope }
-                : {}),
-              ...(Object.keys(requestHeaders).length > 0 ? { headers: requestHeaders } : {}),
-            }
-          : undefined;
+      const hasHeaders = Object.keys(requestHeaders).length > 0;
       await pending.client.respond(
         pending.protocolRequestId,
-        requestAuth
-          ? { headersApplied: true, requestAuth }
-          : { headersApplied: false, errorMessage: "Provider request auth is missing" },
+        hasHeaders
+          ? { headersApplied: true, requestAuth: { headers: requestHeaders } }
+          : { headersApplied: true, requestAuth: undefined },
       );
       const logContext = {
         modelId: pending.request.modelSelection.modelId,
@@ -6304,11 +6091,7 @@ export function createZCodeAgentService(
         ...(params.response.errorMessage ? { error: params.response.errorMessage } : {}),
         workspaceKey: resolveWorkspaceKey(pending.request.workspace),
       };
-      if (requestAuth) {
-        logger.info(undefined, "ZCode provider runtime headers 已应用", logContext);
-      } else {
-        logger.warn(undefined, "ZCode provider runtime headers 应用失败", logContext);
-      }
+      logger.info(undefined, "ZCode provider runtime headers 已应用", logContext);
     },
 
     onDynamicProviderRuntimeHeadersRequest(params: ZCodeAgentSessionTarget) {

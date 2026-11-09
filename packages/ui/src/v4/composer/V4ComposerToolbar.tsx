@@ -17,7 +17,6 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  resolveModelProviderFamilySpecByProviderId,
   ZCODE_AGENT_PROVIDER,
   type ZCodeConfigOption,
   type ZCodeProvider,
@@ -51,14 +50,10 @@ import type {
   ModelSelectionRefreshResult,
 } from "@/hooks/useModelSelectionView.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
-import { useBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
-import { useComposerConnectionSwitch } from "@/hooks/useComposerConnectionSwitch.js";
 import {
   buildComposerPlanGroups,
-  composerConnectionKey,
   chooseConnectionModel,
 } from "@/lib/composerPlanGroups.js";
-import { useSettings } from "@/hooks/useSettingService.js";
 import { useToolbarConfigOptions } from "@/hooks/useZCodeConfig.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
@@ -77,9 +72,6 @@ export { V4ComposerModeSwitch } from "@/v4/composer/V4ComposerModeControls.js";
 
 const V4_COMPOSER_INPUT_SELECTOR = `[data-testid="${TID_V4_COMPOSER_INPUT}"]`;
 const MODEL_SELECTION_LOADING_STATE: ModelSelectionState = { status: "loading" };
-
-/** 团队产品目录已删除；空数组喂 planGroups，保持原兜底分支行为不变。 */
-const EMPTY_TEAM_PRODUCTS: readonly never[] = [];
 
 /** 稳定空回调（热键 hook 单实例只处理本组件拥有的选项，其余动作占位）。 */
 function noop(): void {}
@@ -165,12 +157,7 @@ function V4ComposerModelControlsImpl({
     workspaceIdentity,
   );
   const providerSettingsRead = useProviderSettingsView();
-  const providerSettingsView =
-    providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
   const providerSourcesLoading = providerSettingsRead.state.status !== "ready";
-  // 配置面存活服务读（过渡归宿 = 配置面 v4 化）：连接方式选中键喂 BigModel Team Plan 门控豁免。
-  const baseServices = useBaseWorkspaceServices();
-  const { settings: sharedSettings } = useSettings({ services: baseServices });
   const openSettingsTab = useTabStore((state) => state.openSettingsTab);
   const modelTriggerRef = useRef<HTMLSpanElement | null>(null);
   // Ctrl+M 热键：递增 openRequestKey 请求 ModelConfigSelect 打开菜单（旧 handleOpenModelMenuShortcut 语义）。
@@ -202,13 +189,6 @@ function V4ComposerModelControlsImpl({
     return resolveDraftDisplayedConfig(draftConfig ?? {});
   }, [draftConfig]);
 
-  // 按当前连接 family 区分团队行展示，避免 zai 团队误用 bigmodel 产品目录。
-  // 团队产品目录已删除；传空数组，buildComposerPlanGroups 按可用 Provider 兜底保留团队行。
-  const connectionFamily =
-    resolveModelProviderFamilySpecByProviderId(effectiveConfig?.provider ?? "")?.id ??
-    sharedSettings?.providerFamilyDomain ??
-    "bigmodel";
-  const subscribedTeamProducts: readonly never[] = EMPTY_TEAM_PRODUCTS;
   // 高频交互排障只走 debug，避免生产日志量随每次选择增长。
   useEffect(() => {
     if (!draftMode) return;
@@ -384,59 +364,11 @@ function V4ComposerModelControlsImpl({
     ],
   );
 
-  const planGroups = useMemo(
-    () =>
-      buildComposerPlanGroups(
-        modelSelectGroups,
-        subscribedTeamProducts,
-        providerSettingsView,
-        displayProvider,
-        modelGroupLabels,
-        sharedSettings?.providerFamilyConnectionSelections,
-      ),
-    [
-      modelSelectGroups,
-      subscribedTeamProducts,
-      providerSettingsView,
-      displayProvider,
-      modelGroupLabels,
-      sharedSettings?.providerFamilyConnectionSelections,
-    ],
+  const planGroups = useMemo(() => buildComposerPlanGroups(modelSelectGroups), [modelSelectGroups]);
+  const selectedPlanGroup = planGroups.find((group) =>
+    group.items.some((item) => item.value === normalizedModelValue),
   );
-  const connectionSwitch = useComposerConnectionSwitch({
-    workspacePath,
-    workspaceIdentity,
-    agentProvider: displayProvider,
-    normalizedValue: normalizedModelValue,
-    onSelectModel: handleModelValueChange,
-    waitForPresentation: true,
-    refreshPresentation: modelSelectionRefresh,
-    presentationStatus: modelSelectionState.status,
-    presentationRevision: modelSelectionView?.revision,
-    presentationErrorRevision:
-      modelSelectionState.status === "ready"
-        ? modelSelectionState.refreshError?.revision
-        : undefined,
-  });
-  const selectedProviderId = decodeCustomModelValue(normalizedModelValue)?.providerId;
-  const selectedPlanGroup = planGroups.find((group) => {
-    const connection = group.connection;
-    if (!connection || connection.providerId !== selectedProviderId) return false;
-    const selection = sharedSettings?.providerFamilyConnectionSelections?.[connection.family];
-    return (
-      connection.selection?.kind !== "team-coding-plan" ||
-      (selection && composerConnectionKey(connection.family, selection) === connection.key)
-    );
-  });
-  const selectedPlanKey = connectionSwitch.pending
-    ? connectionSwitch.previousKey
-    : (selectedPlanGroup?.key ??
-      // 团队共用模型 value；当前过期行隐藏后，不能误选另一团队并阻止用户点击它。
-      planGroups.find(
-        (group) =>
-          group.connection?.selection?.kind !== "team-coding-plan" &&
-          group.items.some((item) => item.value === normalizedModelValue),
-      )?.key);
+  const selectedPlanKey = selectedPlanGroup?.key;
 
   const draftModelThoughtOption = useMemo(
     () =>
@@ -513,40 +445,20 @@ function V4ComposerModelControlsImpl({
   // 改绑后按钮提示即时跟随（不能用硬编码文案）。
   const modelShortcutLabel = useShortcutCommandLabel("openModelMenu");
   const thoughtShortcutLabel = useShortcutCommandLabel("cycleThoughtLevel");
-  const selectConnection = connectionSwitch.select;
-  // 原因：内联对象会在无关渲染时使 memo 选择器失效；按展示事实和回调缓存选项。
   const composerOptions = useMemo<ComposerModelOptions>(
     () => ({
       providerMenu: {
         groups: planGroups,
         selectedKey: selectedPlanKey,
-        pending: connectionSwitch.pending,
-        // 团队目录查询不是用户的连接切换操作，不能把登录错误挂到 API 菜单。
-        error: connectionSwitch.error,
+        pending: false,
+        error: null,
         onSelect: (group) => {
-          // 原因：展示失败时设置可能已成功；已选连接仍须允许重试，不能被同 key 短路。
-          if (group.key === selectedPlanKey && !connectionSwitch.error) return;
-          if (group.connection) {
-            void selectConnection(group.connection, selectedPlanKey);
-          } else {
-            const model = chooseConnectionModel(
-              group.items,
-              decodeCustomModelValue(normalizedModelValue)?.modelName,
-            );
-            const providerId = decodeCustomModelValue(model?.value ?? "")?.providerId;
-            // 原因：普通 API 原先绕过连接切换 owner，缺少 loading 且会暴露旧目录。
-            if (providerId)
-              void selectConnection(
-                {
-                  key: group.key,
-                  label: group.label,
-                  providerId,
-                  family: connectionFamily,
-                  items: group.items,
-                },
-                selectedPlanKey,
-              );
-          }
+          if (group.key === selectedPlanKey) return;
+          const model = chooseConnectionModel(
+            group.items,
+            decodeCustomModelValue(normalizedModelValue)?.modelName,
+          );
+          if (model) handleModelValueChange(model.value);
         },
       },
       providerLabel: intl.formatMessage({ id: "chat.toolbar.combined.provider" }),
@@ -565,16 +477,11 @@ function V4ComposerModelControlsImpl({
     [
       planGroups,
       selectedPlanKey,
-      connectionSwitch.pending,
-      connectionSwitch.error,
-      selectConnection,
       normalizedModelValue,
-      connectionFamily,
-      intl,
+      handleModelValueChange,
       thoughtShortcutLabel,
       thoughtOption,
       displayProvider,
-      handleThoughtValueChange,
     ],
   );
   const isModelOptionLocked = useCallback(() => false, []);
@@ -594,8 +501,8 @@ function V4ComposerModelControlsImpl({
       : undefined;
   useToolbarShortcutBindings({
     hasAnyOption: Boolean(modelOption) || Boolean(thoughtOption),
-    toolbarDisabled: disabled || recoveryPending || connectionSwitch.pending,
-    modelMenuDisabled: disabled || recoveryPending || connectionSwitch.pending || !modelMenuVisible,
+    toolbarDisabled: disabled || recoveryPending,
+    modelMenuDisabled: disabled || recoveryPending || !modelMenuVisible,
     modelOption,
     thoughtOption: thoughtOption ?? undefined,
     onOpenModelMenu: handleOpenModelMenuShortcut,
@@ -659,10 +566,7 @@ function V4ComposerModelControlsImpl({
                 : "chat.toolbar.model.targetMissing",
           })}
         </span>
-      ) : modelMenuVisible &&
-        !providerSourcesLoading &&
-        planGroups.length === 0 &&
-        !connectionSwitch.pending ? (
+      ) : modelMenuVisible && !providerSourcesLoading && planGroups.length === 0 ? (
         // 空配置是正常状态；直接复用 Provider 设置入口，不展开无名称、无模型的菜单。
         <Button
           type="button"

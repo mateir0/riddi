@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, LoaderIcon } from "lucide-react";
-import { type WebRemoteControlMobileNavigationIntent } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { WebRemoteControlThemeMenu } from "@/WebRemoteControlThemeMenu.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { WebRemoteControlTaskViewReporter } from "@/web-remote-control/index.js";
+import type { WebRemoteControlMobileNavigationIntent } from "@/root/webRemoteControlContracts.js";
 import type { WebRemoteControlTerminalTransportState } from "@/root/types.js";
 import type { WebRemoteControlWorkspaceSwitcherApi } from "@/root/types.js";
 import { useWebRemoteControlTerminalTransportState } from "@/webRemoteControlTerminalTransportState.js";
@@ -151,17 +150,6 @@ export function WebRemoteControlMobileShell({
   // 让 subagent 输出、进程面板和正文在抽屉内换行。
   return (
     <>
-      <WebRemoteControlTaskViewReporter
-        enabled={
-          taskViewEnabled &&
-          (!isMobileViewport ||
-            (currentPage === "chat" && !shouldInertChatSurface && !switchingWorkspace))
-        }
-        activeTaskId={activeTaskId}
-        workspacePath={activeWorkspacePath}
-        workspaceIdentity={activeWorkspaceIdentity}
-        switcher={switcher}
-      />
       {isMobileViewport ? (
         <div className="relative flex h-full min-h-0 min-w-0 flex-col bg-background">
           {currentPage === "home" ? (

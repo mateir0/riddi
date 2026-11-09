@@ -1,16 +1,7 @@
-import {
-  BUILTIN_MODEL_PROVIDER_IDS,
-  BUILTIN_PROVIDER_TEMPLATE_IDS,
-} from "./model-provider-types.js";
-import { normalizeOfficialGlmModelId } from "./official-glm-model-id.js";
-
-// 不凭用户自定义 Provider 的名字猜所属站点；闲时 Ticket 的绑定身份也不能改。
-export function migrateLegacyOfficialGlmModelId(providerId: string, modelId: string): string {
-  return /^(?:builtin:(?:zai|bigmodel)(?:-start-plan|-coding-plan)?|account:(?:zai|bigmodel)-(?:start-plan|individual-coding-plan|team-coding-plan))$/.test(
-    providerId,
-  )
-    ? normalizeOfficialGlmModelId(modelId)
-    : modelId;
+// Z.ai / BigModel 的 Provider 与账号身份已整体删除；旧模型 ID 不再做官方站点归一化，
+// 只保留原值，避免为已不存在的 Provider 重新引入可构造路径。
+export function migrateLegacyOfficialGlmModelId(_providerId: string, modelId: string): string {
+  return modelId;
 }
 
 /**
@@ -20,20 +11,7 @@ export function migrateLegacyOfficialGlmModelId(providerId: string, modelId: str
  * 迁移不查模型/档位是否可用；普通未知 ID 不构成旧格式证据。
  */
 export function migrateLegacyModelProviderId(providerId: string): string | undefined {
-  switch (providerId) {
-    case "builtin:bigmodel":
-      return BUILTIN_PROVIDER_TEMPLATE_IDS.bigmodel;
-    case "builtin:zai":
-      return BUILTIN_PROVIDER_TEMPLATE_IDS.zai;
-    case "builtin:bigmodel-start-plan":
-      return BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan;
-    case "builtin:zai-start-plan":
-      return BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan;
-    case "builtin:bigmodel-coding-plan":
-      return BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan;
-    case "builtin:zai-coding-plan":
-      return BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan;
-    default:
-      return providerId.startsWith("builtin:") ? undefined : providerId;
-  }
+  // 旧 Z.ai / BigModel 模板与账号 Provider 已从产品中删除，对应记录保持不可解析；
+  // 不再提供迁移落点，避免这些身份经由旧数据重新进入配置。
+  return providerId.startsWith("builtin:") ? undefined : providerId;
 }

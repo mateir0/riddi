@@ -60,7 +60,6 @@ import {
   createCredentialService,
   createSettingService,
   createTelemetryCore,
-  createTelemetryMarketingParamsLoader,
   createTelemetryUserIdLoader,
   createTelemetryAuthorizationLoader,
   buildRuntimeProcessEnvPatch,
@@ -90,7 +89,6 @@ import {
   TEST_ZCODE_ENDPOINT_ORIGIN,
   ZCODE_VERSION,
   buildZCodeEndpointUrls,
-  resolveWebRemoteControlRelayWsUrl,
   resolveZCodeEndpointOrigin,
   shouldEnableE2ETestBridge,
   type UpdateStatePayload,
@@ -98,7 +96,7 @@ import {
   HostMessageTypes,
   InternalChannels,
 } from "@zcode/shared";
-import { logger, webRemoteControlRelayLogger, flushLocalTtftLogs } from "./logger.js";
+import { logger, flushLocalTtftLogs } from "./logger.js";
 import { markMainLaunchAppReady } from "./desktopLaunchMarks.js";
 import { createCuaPipFocusRouter, resolveCuaPipWindowKey } from "./cuaPipFocusRouter.js";
 import { createDesktopTelemetryFetch } from "./desktopTelemetryFetch.js";
@@ -137,17 +135,6 @@ import {
   type ExplicitStartupWorkspaceRequest,
   resolveExplicitStartupWorkspaceBootstrap,
 } from "./startupWorkspaceDeepLinkGate.js";
-import { createWebRemoteControlManager } from "./webRemoteControlManager.js";
-import {
-  createMobileLogSink,
-  createWebRemoteControlDeviceStorage,
-  pullAndExportMobileLogs,
-  runWebRemoteControlActionInRenderer,
-  type MobileLogSink,
-} from "#src/main/web-remote-relay/index.js";
-import { createWebRemoteControlFeatureGate } from "./webRemoteControlFeatureGate.js";
-import { reconnectWebRemoteControlWorkspaceInRenderer } from "./webRemoteControlRendererReconnect.js";
-import { sendWebRemoteControlStatusChangedToWindow } from "./webRemoteControlStatusEvents.js";
 import { executeDesktopCommand } from "./desktopCommandHandlers.js";
 import { clampDesktopZoomLevel, resolveDesktopZoomLevelFromFactor } from "./desktopZoom.js";
 import {
@@ -231,7 +218,6 @@ import {
   listRegisteredHostAgentProcessIds,
   setBrowserUseGuestWebContentsIdsProvider,
 } from "./resourceManagerWindow.js";
-import { createWebRemoteControlSharedHostAttachments } from "./webRemoteControlSharedHostAttachments.js";
 import { createDesktopHelpConfigReader } from "./desktopHelpConfig.js";
 import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
 import {
@@ -712,9 +698,6 @@ const disposingHostProcessTimers = new WeakMap<
   ElectronUtilityProcess,
   ReturnType<typeof setTimeout>
 >();
-const webRemoteControlManagerRef = {
-  current: null as ReturnType<typeof createWebRemoteControlManager> | null,
-};
 let updateStatusWindow: BrowserWindow | null = null;
 const UPDATE_STATUS_WINDOW_WIDTH = 512;
 const UPDATE_STATUS_WINDOW_COMPACT_HEIGHT = 205;
@@ -722,7 +705,6 @@ const UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT = 224;
 const UPDATE_STATUS_WINDOW_READY_HEIGHT = UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT - 54;
 const UPDATE_STATUS_WINDOW_TRAFFIC_LIGHT_POSITION = { x: 10, y: 10 } as const;
 const mainSettingService = createSettingService();
-const webRemoteControlCredentialService = createCredentialService();
 const appLaunchGate = createAppLaunchGate();
 const appLaunchCoordinator = createAppLaunchCoordinator(appLaunchGate);
 const appTelemetryCredentialService = createCredentialService();
@@ -782,7 +764,6 @@ function awaitFirstHostSpawnDecision(): Promise<void> {
 const appTelemetryCore = createTelemetryCore({
   loadUserId: createTelemetryUserIdLoader(appTelemetryCredentialService),
   loadAuthorization: createTelemetryAuthorizationLoader(appTelemetryCredentialService),
-  loadMarketingParams: createTelemetryMarketingParamsLoader(appTelemetryCredentialService),
   resolveZCodeEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
   fetchImpl: createDesktopTelemetryFetch({
     fetch: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
@@ -855,19 +836,8 @@ const remoteSessionManager = createRemoteWorkspaceSessionManager({
   resolveWslTarget: resolveCanonicalWslTarget,
   reportRemoteConnectionStateChanged: reportRemoteConnectionStateChangedToArms,
   reportRemoteDisconnect: reportRemoteDisconnectToArms,
-  webRemoteControlManagerRef,
 });
 
-// 复用既有只读账号入口；HTTP 由 main 的 Node fetch 执行，不触发 host OAuth 登出。
-const loadRemoteControlUserId = createTelemetryUserIdLoader(webRemoteControlCredentialService);
-const loadRemoteControlAuthorization = createTelemetryAuthorizationLoader(
-  webRemoteControlCredentialService,
-);
-const webRemoteControlSharedHostAttachments = createWebRemoteControlSharedHostAttachments({
-  windowHostProcessMap,
-  attachRemoteWorkspaceSessionHost: remoteSessionManager.attachRemoteWorkspaceSessionHost,
-  logger,
-});
 const deviceMid = ensureDesktopDeviceMidSync();
 // 帮助配置是公开读取，不能复用下面附带账号鉴权的灰度响应缓存。
 const readHelpConfig = createDesktopHelpConfigReader({
@@ -912,13 +882,7 @@ const armsUserIdentitySync = createArmsUserIdentitySync({
   deviceMid,
   setUser: (user) => armsRum.setConfig("user", user),
 });
-const webRemoteControlAppVersion = ZCODE_VERSION || app.getVersion();
-const defaultZCodeEndpointUrls = buildZCodeEndpointUrls(DEFAULT_ZCODE_ENDPOINT_ORIGIN, {
-  appVersion: webRemoteControlAppVersion,
-});
-const webRemoteControlRelayWsEnvOverride =
-  process.env["ZCODE_WEB_REMOTE_CONTROL_RELAY_WS_URL"]?.trim();
-const webRemoteControlUrlEnvOverride = process.env["ZCODE_WEB_REMOTE_CONTROL_URL"]?.trim();
+
 
 function extractOpenWorkspacePathFromDeepLinkUrl(url: string): string | null {
   try {
@@ -942,145 +906,7 @@ let startupOpenWorkspaceRequest: ExplicitStartupWorkspaceRequest | null =
       ? { path: startupDeepLinkWorkspacePath, source: "deep-link" }
       : null;
 
-// 手机实时日志落盘目录：放在 logs/ 下，「导出日志」打包时自动带上。
-function getMobileRealtimeLogDir(): string {
-  return join(getAppConfigDir(), "logs", "mobile");
-}
-let mobileLogSink: MobileLogSink | undefined;
-// 首次收到 mobile-log 时再创建：数据目录在启动后才最终确定，不能在模块加载时固化路径。
-function getMobileLogSink(): MobileLogSink {
-  mobileLogSink ??= createMobileLogSink({ rootDir: getMobileRealtimeLogDir(), logger });
-  return mobileLogSink;
-}
 
-const webRemoteControlManager = createWebRemoteControlManager({
-  mobileLogSink: { append: (target, events) => getMobileLogSink().append(target, events) },
-  getEndpointUrls: async () => {
-    const derived = buildZCodeEndpointUrls(await resolveCurrentZCodeEndpointOrigin(), {
-      appVersion: webRemoteControlAppVersion,
-    });
-    return {
-      ...derived,
-      relayWsUrl: resolveWebRemoteControlRelayWsUrl({
-        endpointOrigin: derived.origin,
-        overrideUrl: webRemoteControlRelayWsEnvOverride,
-      }),
-      remoteUrl: webRemoteControlUrlEnvOverride || derived.remoteUrl,
-    };
-  },
-  relayWsUrl: resolveWebRemoteControlRelayWsUrl({
-    endpointOrigin: DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-    overrideUrl: webRemoteControlRelayWsEnvOverride,
-  }),
-  mobileRemoteControlUrl: webRemoteControlUrlEnvOverride || defaultZCodeEndpointUrls.remoteUrl,
-  deviceMid,
-  deviceName: hostname(),
-  appVersion: webRemoteControlAppVersion,
-  getLogin: async () => {
-    const userId = await loadRemoteControlUserId();
-    const authorization = await loadRemoteControlAuthorization(userId);
-    return authorization ? { userId, jwt: authorization.slice("Bearer ".length) } : undefined;
-  },
-  deviceStorage: createWebRemoteControlDeviceStorage({
-    deleteLegacyCredential: () =>
-      webRemoteControlCredentialService.delete("web-remote-control:external-relay:pass_hash"),
-    loadSettings: () => mainSettingService.get(),
-    patchSettings: (patch) => mainSettingService.update(patch),
-  }),
-  startupRestoreStorageProvider: {
-    load: async () => (await mainSettingService.get()).webRemoteControlLastEnabledContext,
-    save: async (context) => {
-      await mainSettingService.update({
-        webRemoteControlLastEnabledContext: {
-          workspacePath: context.workspacePath,
-          workspaceIdentity: context.workspaceIdentity,
-          initialTaskId: context.initialTaskId,
-        },
-      });
-    },
-    clear: async () => {
-      await mainSettingService.update({
-        webRemoteControlLastEnabledContext: undefined,
-      });
-    },
-  },
-  featureGate: createWebRemoteControlFeatureGate(),
-  logger,
-  relayMessageLogger: webRemoteControlRelayLogger,
-  platformHandlers: {
-    isDockerAvailable: () => isDockerDaemonAvailable(),
-    listWSLDistros: () => listAvailableWSLDistros(),
-    listDockerContainers: () => listAvailableDockerContainers(),
-    listSSHConfigAliases: () => listSSHConfigAliases(),
-    createTempTextAttachment: (payload) => createTempTextAttachment(payload),
-    loadMcpFromUserDirectory: (payload) => loadCliMcpFromUserDirectory(payload),
-    saveMcpToUserDirectory: async (payload) => {
-      try {
-        await saveCliMcpToUserDirectory(payload);
-        return { success: true };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn("[web-remote-control] MCP save failed", message);
-        return { success: false, error: message };
-      }
-    },
-    migrateLegacyCommonMcp: (payload) => migrateLegacyCommonMcp(payload),
-  },
-  reconnectWorkspace: reconnectWebRemoteControlWorkspaceInRenderer,
-  runRendererAction: runWebRemoteControlActionInRenderer,
-  prepareProjectWorkspace: async (windowId, project, requestId) => {
-    const win = BrowserWindow.fromId(windowId);
-    if (!win || win.isDestroyed()) throw new Error("项目导航窗口已关闭");
-    return remoteSessionManager.prepareProjectWorkspace(win, project, requestId);
-  },
-  cancelProjectPreparation: (windowId, requestId) => {
-    const win = BrowserWindow.fromId(windowId);
-    if (win && !win.isDestroyed())
-      remoteSessionManager.cancelPendingRemoteWorkspaceSessionsForWindow(
-        win.webContents.id,
-        "mobile-navigation-superseded",
-        requestId,
-      );
-  },
-  reportRendererTelemetryEvent: (event) => {
-    void appTelemetryCore.reportEvent(event).catch(() => {});
-  },
-  reportRemoteUsageEvent: (windowId, event) => {
-    const win = BrowserWindow.fromId(windowId);
-    if (!win || win.webContents.isDestroyed()) {
-      return;
-    }
-    reportRemoteUsageEventForRenderer(win.webContents.id, event);
-  },
-  onStatusChanged: (windowId, status) => {
-    sendWebRemoteControlStatusChangedToWindow(BrowserWindow.fromId(windowId), status);
-  },
-  attachWorkspaceHost: webRemoteControlSharedHostAttachments.attachWorkspaceHost,
-  setTerminalOwner: webRemoteControlSharedHostAttachments.setTerminalOwner,
-  releaseWorkspaceHostAttachment: webRemoteControlSharedHostAttachments.releaseAttachment,
-  disposeWorkspaceHostAttachmentsForWindow: (windowId) =>
-    webRemoteControlSharedHostAttachments.disposeWindow(windowId),
-  disposeWorkspaceHostAttachmentsForRemoteSession: (remoteSessionId) =>
-    webRemoteControlSharedHostAttachments.disposeRemoteSession(remoteSessionId),
-});
-webRemoteControlManagerRef.current = webRemoteControlManager;
-webRemoteControlManager.startNotifications();
-broadcastHub.onMobilePushRun = (run) => webRemoteControlManager.observeNotificationRun(run);
-// owner 必须在事件到达时同步确认；locale 由 MobilePushConnection 在确认后再异步读取。
-broadcastHub.onMobilePushEvent = (event) =>
-  webRemoteControlManager.sendNotification(event, () =>
-    mainSettingService.get().then(
-      (settings) => (settings.locale?.startsWith("zh") ? "zh-CN" : "en-US"),
-      () => {
-        logger.warn("[mobile-push] notification locale unavailable");
-        throw new Error("locale_unavailable");
-      },
-    ),
-  );
-app
-  .whenReady()
-  .then(() => powerMonitor.on("resume", () => void webRemoteControlManager.refreshNotifications()));
-app.on("will-quit", () => webRemoteControlManager.disposeNotifications());
 
 let forceUpdateMainWindowCreationBlocked = false;
 
@@ -1596,23 +1422,6 @@ async function executeDesktopCommandForApp(
     },
     credentialsDir: getCredentialsDir(),
     currentApplicationLocale,
-    pullMobileLogs: (windowId) =>
-      pullAndExportMobileLogs(windowId, {
-        findTarget: (id) => webRemoteControlManager.findMobileLogPullTarget(id),
-        pull: (id, query, onShard) => webRemoteControlManager.pullMobileLogs(id, query, onShard),
-        exportDir: getExportLogDir(),
-        realtimeLogDir: getMobileRealtimeLogDir(),
-        locale: currentApplicationLocale,
-        showMessage: async (options) => {
-          const parent = senderWindow && !senderWindow.isDestroyed() ? senderWindow : undefined;
-          const result = parent
-            ? await dialog.showMessageBox(parent, options)
-            : await dialog.showMessageBox(options);
-          return result.response;
-        },
-        showItemInFolder: (path) => shell.showItemInFolder(path),
-        logger,
-      }),
   });
 }
 
@@ -1632,9 +1441,6 @@ async function resolveZCodeEndpointSelection(): Promise<"production" | "test" | 
 
 async function handleZCodeEndpointChanged() {
   rebuildMenu();
-  for (const win of getApplicationWindowsExcludingCuaIndicator()) {
-    await webRemoteControlManagerRef.current?.suspend(win.id, "endpoint-changed");
-  }
 }
 
 /** 快捷键设置页录制态（renderer 经 SetShortcutRecordingActive 同步）；true 时菜单摘除可配置 accelerator。 */
@@ -2031,7 +1837,6 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
     syncAutoUpdaterStateToWindow,
     syncReadyUpdateToWindow,
     syncPostUpdateReleaseNotesToWindow,
-    webRemoteControlManager,
     disposeRemoteWorkspaceSessionsForWindow:
       remoteSessionManager.disposeRemoteWorkspaceSessionsForWindow,
     reattachRemoteWorkspaceSessionsForWindow:
@@ -2457,10 +2262,6 @@ app.whenReady().then(async () => {
     getDesktopSessionActivity: () => ({
       runningAgentSessionCount: getRunningAgentSessionCount(),
     }),
-    syncWebRemoteControlWorkspaces: (windowId, workspaces) => {
-      webRemoteControlManager.syncAvailableWorkspaces(windowId, workspaces);
-      void webRemoteControlManager.restorePreviouslyEnabled(windowId, workspaces);
-    },
     syncAppSettings: syncImmediateAppSettings,
     // 设置页置灰查询：monitor 带 stale 缓存，装完 AppIndicator 扩展重开设置页即可刷新。
     // 设置页置灰查询：先确保托盘实例就绪（用户装扩展后首次查询会补建），再返回合并了
@@ -2503,7 +2304,6 @@ app.whenReady().then(async () => {
       armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
     },
     finalArmsCustomEventE2EEnabled: shouldEnableE2ETestBridge(process.env),
-    webRemoteControlManager,
     createRemoteWorkspaceSession: remoteSessionManager.createRemoteWorkspaceSession,
     getRemoteConnectionStats: remoteSessionManager.getRemoteConnectionStats,
     disposeRemoteWorkspaceSession: remoteSessionManager.disposeRemoteWorkspaceSession,

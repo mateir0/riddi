@@ -15,10 +15,7 @@ import { dismissToast, toast, updateToast } from "@/components/ui/toast.js";
 import { matchesPrimaryShortcut } from "@/lib/keyboardShortcuts.js";
 import { isShortcutRecordingActive } from "@/shortcuts/bindings.js";
 import { isRendererReloadNavigation } from "@/lib/rendererNavigation.js";
-import {
-  useWebRemoteControlWorkspaceSync,
-  shouldPublishCompleteWorkspaceSnapshot,
-} from "@/root/rootPlatformWorkspaceSync.js";
+import { shouldPublishCompleteWorkspaceSnapshot } from "@/root/rootPlatformWorkspaceSync.js";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import {
   createShareImportIntent,
@@ -50,9 +47,6 @@ export function useRootPlatformEffects({
   tabs,
   activeWorkspacePath,
   activeWorkspaceIdentity,
-  reconnectingRemoteWorkspaceKeys = [],
-  remoteWorkspaceErrorByWorkspaceKey = {},
-  webRemoteControlFeatureEnabled = false,
   hasCompletedFullTabRestore = true,
   intl,
   isRestoringOAuthSession,
@@ -89,9 +83,6 @@ export function useRootPlatformEffects({
   tabs: WindowTabState[];
   activeWorkspacePath?: string | null;
   activeWorkspaceIdentity?: string | null;
-  reconnectingRemoteWorkspaceKeys?: string[];
-  remoteWorkspaceErrorByWorkspaceKey?: Record<string, string>;
-  webRemoteControlFeatureEnabled?: boolean;
   hasCompletedFullTabRestore?: boolean;
   intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useZCodeIntl>["intl"];
   isRestoringOAuthSession: boolean;
@@ -577,15 +568,7 @@ export function useRootPlatformEffects({
     platform.syncWindowTabs(paths);
   }, [hasCompletedFullTabRestore, isDesktop, platform, tabs]);
 
-  useWebRemoteControlWorkspaceSync({
-    platform,
-    tabs,
-    isDesktop: Boolean(isDesktop),
-    featureEnabled: webRemoteControlFeatureEnabled,
-    hasCompletedFullTabRestore,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
-  });
+  // 0.9.1：远控 relay 的工作区快照同步（platform.syncWebRemoteControlWorkspaces）已随远控链路整体删除。
 
   useEffect(() => {
     if (isDesktop) {

@@ -6,19 +6,7 @@ export const providerApiTypeDataSchema = z.enum([
   "openai-chat-completions",
   "openai-responses",
 ]);
-export const providerGroupDataSchema = z.enum([
-  "standard-personal",
-  "zai-family",
-  "bigmodel-family",
-]);
-export const zhipuAccountModeDataSchema = z.enum([
-  "start-plan",
-  "individual-coding-plan",
-  "team-coding-plan",
-  "off-peak",
-  // 加速卡访问类别；与 zcodeProviderAccountAccessSchema.mode 同值，改动需同步两处。
-  "highspeed",
-]);
+export const providerGroupDataSchema = z.enum(["standard-personal"]);
 export const providerVisibilityDataSchema = z.enum(["visible", "hidden"]);
 export const providerLogoDataSchema = z
   .object({ type: z.literal("builtin"), key: z.string().min(1) })
@@ -31,7 +19,7 @@ const nonBlankRequiredString = z.string().refine((value) => value.trim().length 
 
 export const apiKeyAccessDataSchema = z
   .object({
-    type: z.enum(["api-key", "zhipu-coding-plan-api-key"]),
+    type: z.literal("api-key"),
     apiKey: z.string().nullable().optional(),
     apiKeyManagementUrl: z.string().url().nullable().optional(),
   })
@@ -40,28 +28,8 @@ export const completeApiKeyAccessDataSchema = apiKeyAccessDataSchema.extend({
   apiKey: nonBlankRequiredString,
 });
 
-export const completeZhipuAccountAccessDataSchema = z
-  .object({
-    type: z.literal("zhipu-account"),
-    accountType: z.enum(["zai", "bigmodel"]),
-    mode: zhipuAccountModeDataSchema,
-    entitled: z.boolean(),
-  })
-  .strict();
-export const zhipuAccountAccessDataSchema = z
-  .object({
-    ...sparseShape(completeZhipuAccountAccessDataSchema.shape),
-    type: completeZhipuAccountAccessDataSchema.shape.type,
-  })
-  .strict();
-export const providerAccessDataSchema = z.discriminatedUnion("type", [
-  apiKeyAccessDataSchema,
-  zhipuAccountAccessDataSchema,
-]);
-export const completeProviderAccessDataSchema = z.discriminatedUnion("type", [
-  completeApiKeyAccessDataSchema,
-  completeZhipuAccountAccessDataSchema,
-]);
+export const providerAccessDataSchema = apiKeyAccessDataSchema;
+export const completeProviderAccessDataSchema = completeApiKeyAccessDataSchema;
 
 export const completeProviderApiDataSchema = z
   .object({

@@ -746,7 +746,8 @@ export function InlineEditableProviderCard({
   }, [onDelete]);
 
   const headerProviderName = providerDisplayName;
-  const isAccountProvider = provider.config.access?.type === "zhipu-account";
+  // 0.9.2：账号型 provider（zhipu-account）随账号链路整体删除，只剩 API Key 形态。
+  const isAccountProvider = false;
   const isApiKeyProvider = isApiKeyAccess(provider.config.access);
   const effectiveHeaderVisible = headerVisible && statusSection === undefined;
 

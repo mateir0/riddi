@@ -8,6 +8,7 @@ const HOME_PREFIX = "~/";
 const PRIORITY_STEP = 10;
 const SKILLS_DIR = "skills";
 const ZCODE_DIR = ".zcode";
+const RIDDI_DIR = ".riddi";
 const AGENTS_DIR = ".agents";
 
 export interface SkillRootResolutionOptions {
@@ -109,10 +110,12 @@ function skillRootsForBase(
   scope: SkillRoot["scope"],
   nextPriority: () => number,
 ): SkillRoot[] {
-  // 合并而不是 fallback：用户可能同时安装原生 `.zcode` skill 和兼容 `.agents` skill。
-  // 同一级别仍保持 `.zcode` 优先，后续同名按 root 顺序解析。
+  // 合并而不是 fallback：用户可能同时安装原生 skill 和兼容 `.agents` skill。
+  // 用户级目录解析到 `~/.riddi/skills`，项目级目录仍解析到 `<project>/.zcode/skills`。
+  // 同一级别仍保持产品目录优先，后续同名按 root 顺序解析。
+  const productDir = scope === "user" ? RIDDI_DIR : ZCODE_DIR;
   return [
-    root(join(baseDirectory, ZCODE_DIR, SKILLS_DIR), scope, "zcode", nextPriority()),
+    root(join(baseDirectory, productDir, SKILLS_DIR), scope, "zcode", nextPriority()),
     root(join(baseDirectory, AGENTS_DIR, SKILLS_DIR), scope, "agents", nextPriority()),
   ];
 }

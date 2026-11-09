@@ -8,6 +8,7 @@ const GIT_MARKER = ".git";
 const HOME_PREFIX = "~/";
 const PRIORITY_STEP = 10;
 const ZCODE_DIR = ".zcode";
+const RIDDI_DIR = ".riddi";
 const AGENTS_DIR = ".agents";
 
 export interface CustomCommandRootResolutionOptions {
@@ -109,10 +110,12 @@ function commandRootsForBase(
   scope: CustomCommandRoot["scope"],
   nextPriority: () => number,
 ): CustomCommandRoot[] {
-  // 合并而不是 fallback：兼容 `.agents` 命令和原生 `.zcode` 命令需要同时可见。
-  // 同一级别 `.zcode` 先扫描，命令同名时仍按“先到先赢”处理。
+  // 合并而不是 fallback：兼容 `.agents` 命令和产品原生命令需要同时可见。
+  // 用户级目录解析到 `~/.riddi/commands`，项目级目录仍解析到 `<project>/.zcode/commands`。
+  // 同一级别产品目录先扫描，命令同名时仍按“先到先赢”处理。
+  const productDir = scope === "user" ? RIDDI_DIR : ZCODE_DIR;
   return [
-    root(join(baseDirectory, ZCODE_DIR, COMMANDS_DIR), scope, "zcode", nextPriority()),
+    root(join(baseDirectory, productDir, COMMANDS_DIR), scope, "zcode", nextPriority()),
     root(join(baseDirectory, AGENTS_DIR, COMMANDS_DIR), scope, "agents", nextPriority()),
   ];
 }

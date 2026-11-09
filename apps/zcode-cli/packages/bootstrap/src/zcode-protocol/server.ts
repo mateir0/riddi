@@ -121,7 +121,7 @@ import {
 } from "./mcp-ui/index.js";
 import { listPluginUiSurfaces } from "./plugin-ui-surfaces.js";
 import { updateInteractionPreferences } from "./interaction-preferences.js";
-import { refreshProviderRegistry, updateAccountProviderConfig } from "./account-provider-config.js";
+import { refreshProviderRegistry } from "./account-provider-config.js";
 import { updateModelIoPreferences } from "./model-io-preferences.js";
 import { updateOffPeakToolPolicy } from "./off-peak-tool-policy.js";
 import { updateDynamicWorkflowPolicy } from "./dynamic-workflow-policy.js";
@@ -791,8 +791,6 @@ export class ZCodeProtocolAgentServer {
         }
         return grantResult;
       }
-      case zcodeProtocolMethods.providerUpdateAccountConfig:
-        return await updateAccountProviderConfig(this.context, request.params);
       case zcodeProtocolMethods.providerRefreshRegistry:
         return await refreshProviderRegistry(this.context, request.params);
       case zcodeProtocolMethods.workspaceUpdateInteractionPreferences:

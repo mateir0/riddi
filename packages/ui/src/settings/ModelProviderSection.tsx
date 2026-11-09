@@ -7,9 +7,7 @@ import {
   type ProviderSettingsFormProvider,
 } from "@/lib/providerSettingsFormTypes.js";
 import {
-  BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
-  DesktopCommandIds,
   isStartPlanModelProviderId,
   type BuiltinModelProviderId,
   type ModelConnectivityResult,
@@ -17,24 +15,22 @@ import {
   type ProviderFamilyConnectionSelectionSettings,
   type ProviderFamilyDomain,
   type OAuthProviderId,
+} from "@zcode/shared";
+import {
   resolveModelProviderFamilyIdByProviderId,
   resolveModelProviderFamilySpecByProviderId,
   resolveProviderFamilyDomainFromOAuthProvider,
-  ZAI_PROVIDER_ID,
-} from "@zcode/shared";
+} from "@/settings/model-provider-section/providerFamilySpec.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { Button } from "@/components/ui/button.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useModelProviders } from "@/hooks/useModelProviders.js";
-import { resolveEntitledAccountProviderAccess } from "@/lib/accountProviderAccess.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { useServices } from "@/hooks/useServices.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
 import { logger } from "@/logger.js";
 import {
   PRESET_PROVIDER_SPECS,
   PRESET_SUBSCRIPTION_TIMEOUT_MS,
-  BIGMODEL_REGISTRATION_URL,
   type CodingPlanStatus,
   type CodingPlanEntitlementState,
   type ModelProviderNavGroup,
@@ -44,7 +40,6 @@ import { ModelProviderSectionLayout } from "./model-provider-section/SectionLayo
 import { ProviderTemplatePicker } from "./model-provider-section/ProviderTemplatePicker.js";
 import type { CodingPlanLoginOptions } from "./model-provider-section/codingPlanPricingCards.js";
 import { useModelProviderNavigation } from "./model-provider-section/useModelProviderNavigation.js";
-import { reportPresetSubscriptionSuccess } from "./model-provider-section/oauthActions.js";
 import {
   createCodingPlanProviderNodeKey,
   createCustomProviderNodeKey,
@@ -57,7 +52,6 @@ import {
 } from "./model-provider-section/modelProviderActions.js";
 import { sortModelProvidersForDisplay } from "@/lib/modelProviderOrdering.js";
 import { useSettings } from "@/hooks/useSettingService.js";
-import { resolveLogoutProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
 import {
   addPendingSettingsSectionListener,
   consumePendingSettingsModelProviderTarget,
@@ -146,22 +140,9 @@ function shouldRefreshCodingPlanEntitlementsAfterSave(
 }
 
 function resolveBuiltinPresetOAuthProvider(
-  presetId: BuiltinModelProviderId,
+  _presetId: BuiltinModelProviderId,
 ): OAuthProviderId | null {
-  if (
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan ||
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan ||
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan
-  ) {
-    return ZAI_PROVIDER_ID;
-  }
-  if (
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan ||
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan ||
-    presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan
-  ) {
-    return BIGMODEL_PROVIDER_ID;
-  }
+  // 0.9.1：Z.ai / BigModel OAuth 账号链路已删除，内置预设不再映射任何 OAuth Provider。
   return null;
 }
 
@@ -246,7 +227,7 @@ export function ModelProviderSection({
   const { intl, locale } = useZCodeIntl();
   const confirmDialog = useConfirmDialog();
   const platform = usePlatform();
-  const { modelSelectionService, oauthService, credentialService } = useServices();
+
   const {
     modelProviders,
     providerTemplates,
@@ -276,17 +257,8 @@ export function ModelProviderSection({
       id: "settings.modelProvider.testModel.localWorkspaceUnavailable",
     }),
   });
-  const entitledAccountProviderIds = useMemo<ReadonlySet<string>>(() => {
-    return new Set(
-      (providerSettingsView?.providers ?? [])
-        .filter(
-          (provider) =>
-            provider.effectiveConfig.access?.type === "zhipu-account" &&
-            provider.effectiveConfig.access.entitled === true,
-        )
-        .map((provider) => provider.providerId),
-    );
-  }, [providerSettingsView]);
+  // 0.9.2：账号型权益（zhipu-account）随账号链路整体删除，恒无已授权账号 Provider。
+  const entitledAccountProviderIds = useMemo<ReadonlySet<string>>(() => new Set<string>(), []);
   const providerConnectionRefreshSignal = providerSettingsView?.revision;
   const [initialModelProviderTarget] = useState(() => consumePendingSettingsModelProviderTarget());
   const [invalidProviderTarget, setInvalidProviderTarget] = useState(() =>
@@ -450,45 +422,18 @@ export function ModelProviderSection({
         shouldApply?: () => boolean;
       } = {},
     ) => {
-      const [activeProvider, zaiToken, bigmodelToken] = await Promise.all([
-        credentialService.load("oauth:active_provider"),
-        credentialService.load(`oauth:${ZAI_PROVIDER_ID}:access_token`),
-        credentialService.load(`oauth:${BIGMODEL_PROVIDER_ID}:access_token`),
-      ]);
       if (options.shouldApply && !options.shouldApply()) {
         return null;
       }
-      const normalizedActiveProvider =
-        activeProvider === ZAI_PROVIDER_ID || activeProvider === BIGMODEL_PROVIDER_ID
-          ? activeProvider
-          : null;
-      setActiveOAuthProvider(normalizedActiveProvider);
-      setCodingPlanPurchaseTokenAuthenticatedByProviderId({
-        [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]:
-          normalizedActiveProvider === ZAI_PROVIDER_ID && (zaiToken?.trim().length ?? 0) > 0,
-        [BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan]:
-          normalizedActiveProvider === ZAI_PROVIDER_ID && (zaiToken?.trim().length ?? 0) > 0,
-        [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]:
-          normalizedActiveProvider === ZAI_PROVIDER_ID && (zaiToken?.trim().length ?? 0) > 0,
-        [BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan]:
-          normalizedActiveProvider === BIGMODEL_PROVIDER_ID &&
-          (bigmodelToken?.trim().length ?? 0) > 0,
-        [BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan]:
-          normalizedActiveProvider === BIGMODEL_PROVIDER_ID &&
-          (bigmodelToken?.trim().length ?? 0) > 0,
-        [BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan]:
-          normalizedActiveProvider === BIGMODEL_PROVIDER_ID &&
-          (bigmodelToken?.trim().length ?? 0) > 0,
-      });
-      if (!normalizedActiveProvider && options.clearUserWhenLoggedOut) {
-        // provider Unlink 已等价于 App logout。
-        // 服务端 token 已清理后，设置页也要同步清掉 Zustand user，否则侧边栏会一直显示旧登录态直到重启。
+      // 0.9.1：Z.ai / BigModel OAuth 账号链路已删除，不再读取 oauth token 或写入购买态。
+      if (options.clearUserWhenLoggedOut) {
+        // provider Unlink 已等价于 App logout：清掉 Zustand user，避免侧边栏残留旧登录态。
         setUser(null);
         setOAuthError(null);
       }
-      return normalizedActiveProvider;
+      return null;
     },
-    [credentialService, setOAuthError, setUser],
+    [setOAuthError, setUser],
   );
 
   const refreshProviderPanelAfterAuthChange = useCallback(
@@ -587,41 +532,15 @@ export function ModelProviderSection({
       return;
     }
 
-    const accountEntitled = Boolean(
-      resolveEntitledAccountProviderAccess(providerSettingsView, presetSubscriptionProviderId),
+    // 0.9.1：Z.ai / BigModel 账号权益链路已删除，预设订阅成功后不再触发账号态刷新；
+    // 这里只负责把不再有消费方的 pending 状态清空。
+    setCodingPlanStatusSyncProviderId((current) =>
+      current === presetSubscriptionProviderId ? null : current,
     );
-    if (accountEntitled) {
-      if (presetSubscriptionCompletionProviderIdRef.current === presetSubscriptionProviderId) {
-        return;
-      }
-
-      presetSubscriptionCompletionProviderIdRef.current = presetSubscriptionProviderId;
-      void (async () => {
-        void reportPresetSubscriptionSuccess({
-          platform,
-          presetId: presetSubscriptionProviderId,
-        });
-        try {
-          // Bugfix: 连接/重新授权成功后账号连接状态会先于本轮权益接口结果就绪。
-          // pending 必须等本轮权益刷新完成后再清，否则 Plan Card 会短暂显示旧套餐态或非 loading 状态。
-          await refreshProviderPanelAfterAuthChange({});
-        } finally {
-          presetSubscriptionCompletionProviderIdRef.current = null;
-          setCodingPlanStatusSyncProviderId((current) =>
-            current === presetSubscriptionProviderId ? null : current,
-          );
-          setPresetSubscriptionProviderId((current) =>
-            current === presetSubscriptionProviderId ? null : current,
-          );
-        }
-      })();
-    }
-  }, [
-    platform,
-    presetSubscriptionProviderId,
-    providerSettingsView,
-    refreshProviderPanelAfterAuthChange,
-  ]);
+    setPresetSubscriptionProviderId((current) =>
+      current === presetSubscriptionProviderId ? null : current,
+    );
+  }, [presetSubscriptionProviderId]);
 
   useEffect(() => {
     if (!presetSubscriptionProviderId) {
@@ -773,63 +692,12 @@ export function ModelProviderSection({
 
   const handleCodingPlanDisconnect = useCallback(
     async (presetId: BuiltinModelProviderId, providerId: OAuthProviderId, providerName: string) => {
-      if (providerId !== BIGMODEL_PROVIDER_ID && providerId !== ZAI_PROVIDER_ID) {
-        return;
-      }
-
-      setCodingPlanDisconnectProviderId(presetId);
-      setCodingPlanStatusSyncProviderId(presetId);
-      try {
-        logger.info("[ModelProviderSection] 请求解绑 Coding Plan provider", {
-          presetId,
-          providerId,
-          providerName,
-        });
-        // ZAI/BigModel provider 已恢复为 App 登录镜像。
-        // 这里的 Unlink 必须走 provider logout，退出当前 active provider 并触发另一组 provider 恢复 Connect。
-        const nextProviderFamilyDomain = resolveLogoutProviderFamilyDomain({
-          currentDomain: sharedSettings?.providerFamilyDomain,
-        });
-        await oauthService.logout(providerId);
-        // Coding Plan 官网 webview 使用独立持久 partition，provider Unlink 也属于账号边界。
-        if (typeof platform.executeDesktopCommand === "function") {
-          await platform.executeDesktopCommand(DesktopCommandIds.ClearCodingPlanWebviewStorage);
-        }
-        await updateSharedSettings({
-          providerFamilyDomain: (nextProviderFamilyDomain ?? "") as never,
-          providerFamilyDomainUpdatedAt: Date.now(),
-          providerFamilyDomainMigrated: true,
-        });
-        await refreshCodingPlanPurchaseTokenState({ clearUserWhenLoggedOut: true });
-        await refresh();
-        // 解绑后 batch-preview 的订阅/鉴权态已经失效，套餐卡片内部缓存必须刷新，
-        // 否则按钮会继续沿用解绑前的 purchased 或 authenticated 状态。
-        refreshCodingPlanProducts();
-        // unlink 前的 React 闭包里仍可能保留旧 Start/Coding provider key。
-        // 解绑按钮只等待本地 logout 和 provider 列表刷新；权益 hook 会在新 provider 快照落地后清空旧状态。
-      } catch (error) {
-        logger.error("[ModelProviderSection] 解绑 Coding Plan provider 失败", {
-          presetId,
-          providerId,
-          providerName,
-          error,
-        });
-      } finally {
-        setCodingPlanDisconnectProviderId((current) => (current === presetId ? null : current));
-        setCodingPlanStatusSyncProviderId((current) => (current === presetId ? null : current));
-      }
+      // 0.9.1：Z.ai / BigModel 账号断连入口随账号链路整体删除；详情页也不再渲染解绑按钮。
+      void presetId;
+      void providerId;
+      void providerName;
     },
-    [
-      oauthService,
-      platform,
-      updateSharedSettings,
-      sharedSettings?.providerFamilyDomain,
-      modelSelectionService,
-      refresh,
-      refreshCodingPlanEntitlements,
-      refreshCodingPlanProducts,
-      refreshCodingPlanPurchaseTokenState,
-    ],
+    [],
   );
 
   const persistProviderFamilyModeForNavItem = useCallback(
@@ -1147,12 +1015,11 @@ export function ModelProviderSection({
           onOpenApiKeyUrl={handleOpenApiKeyUrl}
           onSelectNavItem={handleSelectNavItem}
           onOpenBigModelRegistration={() => {
-            // 未注册提示来自一次失败的 OAuth checking 状态；跳转注册后要恢复普通状态，避免提示卡住。
+            // 0.9.1：BigModel 注册入口随账号链路整体删除，只恢复普通状态避免卡住。
             setOAuthError(null);
             setPresetSubscriptionProviderId((current) =>
               current === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan ? null : current,
             );
-            platform.openExternal(BIGMODEL_REGISTRATION_URL);
           }}
           onCodingPlanPurchaseComplete={async () => {
             await refreshProviderPanelAfterAuthChange({ refreshReason: "purchase" });

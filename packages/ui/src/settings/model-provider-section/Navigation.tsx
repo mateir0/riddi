@@ -21,9 +21,9 @@ import { Loader2Icon } from "lucide-react";
 import { ProviderStatusIndicator } from "./ProviderStatusIndicator.js";
 
 import {
-  resolveModelProviderFamilySpecByProviderId,
   isStartPlanModelProviderId,
 } from "@zcode/shared";
+import { resolveModelProviderFamilySpecByProviderId } from "@/settings/model-provider-section/providerFamilySpec.js";
 import { TID_MODEL_PROVIDER_NAV_ITEM, testId } from "@zcode/shared/test-ids";
 import { useCallback, useMemo, type KeyboardEvent } from "react";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";

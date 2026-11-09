@@ -8,7 +8,10 @@ import type {
 import type { CodeViewerSource } from "@/lib/codeViewer.js";
 import type { Theme } from "@/useTheme.js";
 export { LEGACY_SINGLE_ROOT_PROJECT_PREFIX } from "@zcode/services";
-export type { WebRemoteControlMobileTaskView, WebRemoteControlStatus } from "@zcode/shared";
+export type {
+  WebRemoteControlMobileTaskView,
+  WebRemoteControlStatusKind,
+} from "@/root/webRemoteControlContracts.js";
 export interface ProjectDevice {
   id: string;
   label: string;

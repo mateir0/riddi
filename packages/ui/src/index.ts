@@ -3,7 +3,6 @@ export { AppErrorBoundary, ScopedErrorBoundary } from "./ErrorBoundary.js";
 export type { ScopedErrorBoundaryVariant } from "./ErrorBoundary.js";
 export { Button, buttonVariants } from "./components/ui/button.js";
 export { DesktopWindowFrame } from "./DesktopWindowFrame.js";
-export { WebRemoteControlDialog } from "@/web-remote-control/index.js";
 export {
   WebRemoteControlFeatureProvider,
   useWebRemoteControlFeatureEnabled,
@@ -72,7 +71,6 @@ export {
   useRecentProjects,
   useConfirmDialog,
   useCredentials,
-  useAuthToken,
   useGitRepository,
   useGitActions,
 } from "./hooks/index.js";

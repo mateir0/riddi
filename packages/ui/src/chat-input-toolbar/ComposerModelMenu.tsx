@@ -163,10 +163,7 @@ export function ComposerModelMenu({
         isDisabled={(candidate) => Boolean((candidate as ComposerPlanGroup).connection?.disabled)}
         separatorBeforeKey={
           options.providerMenu
-            ? menuGroups.find(
-                (candidate) =>
-                  !candidate.connection && !candidate.key.startsWith("registry-provider:account:"),
-              )?.key
+            ? menuGroups.find((candidate) => !candidate.connection)?.key
             : undefined
         }
         group={group}

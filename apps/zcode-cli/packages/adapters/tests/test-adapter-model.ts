@@ -9,12 +9,10 @@ import {
 } from "@zcode/contracts";
 import type { TestAiSdkModelAdapter } from "./test-provider-config.js";
 import { createTestModelProperties } from "./test-model-format.js";
-import type { ZhipuAccountMode } from "@zcode/provider";
 
 type TestModelTextRequest = ModelTextRequest & {
   modelRequestSessionFeatures?: ModelInvocationContext["modelRequestSessionFeatures"];
   properties?: ModelProperties;
-  accountMode?: ZhipuAccountMode;
 };
 
 export function executeAdapterGenerateText(
@@ -40,11 +38,6 @@ export function executeAdapterStreamText(
 function createAdapterTestModel(adapter: TestAiSdkModelAdapter, request: TestModelTextRequest) {
   const maxOutputTokens = request.maxOutputTokens ?? 32_000;
   return adapter.createModel({
-    ...(request.accountMode || request.refreshRuntimeHeadersBeforeAttempt
-      ? {
-          accountMode: request.accountMode ?? ("individual-coding-plan" as const),
-        }
-      : {}),
     providerId: request.providerId,
     modelId: request.modelId,
     properties: request.properties ?? createTestModelProperties(),

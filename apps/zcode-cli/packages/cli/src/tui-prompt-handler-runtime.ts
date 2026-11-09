@@ -77,7 +77,6 @@ export async function prepareTuiAppRuntime(
       : {
           standalone: {
             ...createCliProviderRefreshReporter(),
-            ...(deps.userConfigPath ? { legacyCliUserConfigFilePath: deps.userConfigPath } : {}),
           },
         },
   );

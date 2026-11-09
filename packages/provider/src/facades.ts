@@ -151,7 +151,6 @@ export interface ProviderSettingsProviderView extends Pick<
   "providerName" | "templateId"
 > {
   readonly enabled: boolean;
-  readonly accountState?: import("./account-provider-state.js").AccountProviderState;
   readonly providerId: ProviderId;
   /** 当前 Effective Config 是否已经进入 Registry，可用于模型选择和创建。 */
   readonly executable: boolean;
@@ -223,7 +222,6 @@ export class ProviderSettingsFacade {
       personalProviders: snapshot.config.personalProviders,
       personalModels: snapshot.config.personalModels,
       resolution: snapshot.resolution,
-      accountStates: snapshot.account.states,
     });
   }
 
@@ -437,8 +435,7 @@ export class ProviderSettingsFacade {
       (item) => item.providerId === providerId,
     );
     if (!provider) throw new Error(`Provider 不存在: ${providerId}`);
-    // 配置成员与可执行模型不是同一名单：禁用、无权益和不完整模型仍可编辑。
-    // Account 的空/替换名单也必须原样使用，不能再与静态 Built-in 取并集。
+    // 配置成员与可执行模型不是同一名单：禁用和不完整模型仍可编辑。
     return Object.freeze({
       providerId,
       inheritedModelIds: Object.freeze(
@@ -554,7 +551,6 @@ export class ModelSelectionFacade {
         ? resolveEffectiveModelSelection({
             selection: input.selection,
             registry,
-            accountStates: snapshot?.account.states,
             classifyProvider: this.#classifyProvider,
             resolveLegacyReasoningLevel,
           })
@@ -609,7 +605,6 @@ function createProviderSettingsView(input: {
   personalProviders: ProviderRegistryServiceSnapshot["config"]["personalProviders"];
   personalModels: ProviderRegistryServiceSnapshot["config"]["personalModels"];
   resolution: ProviderConfigResolution;
-  accountStates?: import("./account-provider-state.js").AccountProviderStates;
 }): ProviderSettingsView {
   const executableProviderIds = new Set(
     input.resolution.registryProviders.map((provider) => provider.providerId),
@@ -621,9 +616,6 @@ function createProviderSettingsView(input: {
       providerName: provider.providerName,
       templateId: provider.templateId,
       enabled: provider.enabled,
-      ...(input.accountStates?.[provider.providerId]
-        ? { accountState: input.accountStates[provider.providerId] }
-        : {}),
       executable: executableProviderIds.has(provider.providerId),
       ...(provider.templateConfig ? { templateConfig: provider.templateConfig.toJSON() } : {}),
       ...(provider.effectiveBuiltinConfig

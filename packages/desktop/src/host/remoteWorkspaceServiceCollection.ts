@@ -18,7 +18,6 @@ import {
   createUnsupportedConversationShareService,
   IBotsService,
   IFileWatcherService,
-  IOAuthService,
   IModelSelectionService,
   IProviderSettingsService,
   ISourceServerWorkspaceService,
@@ -82,7 +81,6 @@ export const REMOTE_WORKSPACE_RPC_REGISTRATIONS = [
   ["conversationShareService", IConversationShareService],
   ["botsService", IBotsService],
   ["fileWatcherService", IFileWatcherService],
-  ["oauthService", IOAuthService],
   ["providerSettingsService", IProviderSettingsService],
   ["modelSelectionService", IModelSelectionService],
   ["sourceServerWorkspaceService", ISourceServerWorkspaceService],
@@ -200,7 +198,7 @@ export function createServerRemoteWorkspaceServiceCollection(params: {
     .register(ITerminalService, params.connectionServices.terminalService)
     .register(ISettingService, params.connectionServices.settingService)
     // Bug 原因：远程集合曾漏注册此通道，手机重建 Root 后调用失败，回退 settings 判定而误弹引导。
-    // 引导记录必须与该入口的 settings/OAuth 同源：R3 下四种 transport 都由 Source 持有，不借用本机记录。
+    // 引导记录必须与该入口的 settings 同源：R3 下四种 transport 都由 Source 持有，不借用本机记录。
     .register(IOnboardingRecordService, params.connectionServices.onboardingRecordService)
     .register(ICredentialService, params.connectionServices.credentialService)
     .register(IBroadcastService, params.connectionServices.broadcastService)
@@ -216,7 +214,6 @@ export function createServerRemoteWorkspaceServiceCollection(params: {
     )
     .register(IBotsService, params.connectionServices.botsService)
     .register(IFileWatcherService, params.connectionServices.fileWatcherService)
-    .register(IOAuthService, params.connectionServices.oauthService)
     .register(IProviderSettingsService, params.connectionServices.providerSettingsService)
     .register(IModelSelectionService, params.connectionServices.modelSelectionService)
     .register(ISourceServerWorkspaceService, params.connectionServices.sourceServerWorkspaceService)

@@ -2,7 +2,6 @@ import { SidebarTooltipProvider } from "@/ControlHintTooltip.js";
 export { readProjectSidebarView } from "@/project-sidebar/view-preference.js";
 import { SortableProjects } from "@/project-sidebar/SortableProjects.js";
 export { ArchiveManagement } from "@/project-sidebar/ArchiveManagement.js";
-export { useWebRemoteControlRendererActions } from "@/project-sidebar/useWebRemoteControlRendererActions.js";
 export { ProjectManagement } from "@/project-sidebar/ProjectManagement.js";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { ScrollFadeViewport } from "@/components/ui/scroll-fade-viewport.js";
@@ -17,10 +16,8 @@ import type {
 } from "@/project-sidebar/contract.js";
 import { useProjectPinIntent } from "@/project-sidebar/useProjectPinIntent.js";
 import { ProjectTaskListContext } from "@/project-sidebar/ProjectTaskListContext.js";
-import { useWebRemoteControlStatus } from "@/hooks/useWebRemoteControlStatus.js";
 import { useProjectRemoteSync } from "@/project-sidebar/useProjectRemoteSync.js";
 import { useProjectConnectionDiagnostics } from "@/project-sidebar/useProjectConnectionDiagnostics.js";
-import { useWebRemoteControlFeatureEnabled } from "@/WebRemoteControlFeatureProvider.js";
 import { useProjectDirectory } from "@/project-sidebar/ProjectDirectoryProvider.js";
 export {
   ProjectDirectoryProvider,
@@ -50,7 +47,6 @@ import { RemoteProjectPicker } from "@/project-sidebar/RemoteProjectPicker.js";
 import { ProjectSections } from "@/project-sidebar/ProjectSections.js";
 import { ProjectSidebarListHeader } from "@/project-sidebar/ProjectSidebarListHeader.js";
 import { ProjectSidebarNavigation } from "@/project-sidebar/ProjectSidebarNavigation.js";
-import { HomeOnlyWorkspaceRows } from "@/project-sidebar/HomeOnlyWorkspaceRows.js";
 import { WorkspaceSidebarFooter } from "@/WorkspaceSidebarFooter.js";
 import { SidebarBottomActivity } from "@/sidebar-activity/SidebarBottomActivity.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -103,15 +99,10 @@ export const ProjectSidebar = memo(function ProjectSidebar(props: ProjectSidebar
   );
   const [remotePicker, setRemotePicker] = useState<RemoteProjectHost | null>(null);
   const { openFiles, openTaskFiles } = useProjectFileTree(props, directory, remoteService);
-  const remoteControlEnabled = useWebRemoteControlFeatureEnabled();
-  const mobileStatus = useWebRemoteControlStatus({
-    enabled: Boolean(props.isDesktop && remoteControlEnabled),
-  });
-  const mobileView = mobileStatus.mobileConnected ? mobileStatus.mobileViewState : null;
-  const mobileActiveTaskKey =
-    mobileView?.activeWorkspaceKey && mobileView.activeTaskId
-      ? `${mobileView.activeWorkspaceKey}:${mobileView.activeTaskId}`
-      : null;
+  const remoteControlEnabled = false;
+  // 0.9.1：手机远控 relay（Z.ai 账号门控）已整体删除，不再有“手机正在查看”的瞬时事实。
+  // 保留 `mobileActiveTaskKey` 投影字段（值为 null）以维持任务列表的高亮契约形状。
+  const mobileActiveTaskKey = null;
   const taskPresentation = useMemo(
     () => ({
       isWebRemoteControl: props.isWebRemoteControl,
@@ -208,8 +199,8 @@ export const ProjectSidebar = memo(function ProjectSidebar(props: ProjectSidebar
   );
   const changeTheme = useCallback((value: string) => setTheme(value as Theme), [setTheme]);
   const banner = useMemo(() => <SidebarBottomActivity />, []);
-  // 手机远控 home-only 没有 base attachment，也就没有项目契约；改用 relay 层工作区列表与重连入口。
-  const homeOnlySwitcher = service ? undefined : props.webRemoteControlWorkspaceSwitcher;
+  // 0.9.1：手机远控 relay（Z.ai 账号门控）已整体删除，home-only 工作区列表入口随之移除。
+  const homeOnlySwitcher = undefined;
   return (
     <ProjectTaskListContext.Provider value={taskPresentation}>
       <SidebarTooltipProvider>
@@ -241,9 +232,7 @@ export const ProjectSidebar = memo(function ProjectSidebar(props: ProjectSidebar
                   <div ref={setGroupedSticky} />
                   <ScrollFadeViewport ref={scrollRef} className="overflow-x-hidden">
                     <div className="flex flex-col gap-3 pb-3">
-                      {homeOnlySwitcher ? (
-                        <HomeOnlyWorkspaceRows switcher={homeOnlySwitcher} />
-                      ) : view === "projects" ? (
+                      {view === "projects" ? (
                         <>
                           <ProjectTaskRows
                             kind="pinned"

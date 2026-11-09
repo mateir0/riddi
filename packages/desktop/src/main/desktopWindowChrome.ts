@@ -15,7 +15,6 @@ import {
   DEFAULT_LOCALE,
   desktopMenuMessageIds,
   getDesktopMenuMessage,
-  isTrustedCodingPlanWebviewOrigin,
   isTrustedRewardsUrl,
   PlatformChannels,
 } from "@zcode/shared";
@@ -54,60 +53,11 @@ const ALLOWED_EMBEDDED_BROWSER_PROTOCOLS = new Set([
 ]);
 const ALLOWED_EMBEDDED_BROWSER_NEW_WINDOW_PROTOCOLS = new Set(["http:", "https:"]);
 const EXTERNAL_BROWSER_DISPOSITIONS = new Set(["background-tab"]);
-const CODING_PLAN_ZAI_PAYPAL_RELAY_HOSTS = new Set(["api.z.ai", "api.z.ai"]);
 const embeddedBrowserJavaScriptDialogPreloadPath = join(
   import.meta.dirname,
   "../preload/embeddedBrowserJavaScriptDialog.cjs",
 );
 
-
-/**
- * 宽松判断 webview 当前 URL 是否属于 coding-plan 购买页。
- *
- * setWindowOpenHandler 回调触发时 webview 可能已发生 locale 重定向
- * （/coding-plan → /cn/coding-plan），故 pathname 用 includes 匹配。
- * embedded=app 仍是硬条件，避免误判内置浏览器的外链。
- */
-function isCodingPlanWebviewUrl(src: string | undefined): boolean {
-  if (!src) return false;
-  try {
-    const url = new URL(src);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-    if (
-      !isTrustedCodingPlanWebviewOrigin(url.origin, {
-        e2eStoreBridgeEnabled: process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
-      })
-    ) {
-      return false;
-    }
-    if (!url.pathname.includes("coding-plan")) return false;
-    return url.searchParams.get("embedded") === "app";
-  } catch {
-    return false;
-  }
-}
-
-function isCodingPlanPaymentCallbackUrl(src: string | undefined): boolean {
-  if (!src) return false;
-  try {
-    const url = new URL(src);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-    if (
-      !isTrustedCodingPlanWebviewOrigin(url.origin, {
-        e2eStoreBridgeEnabled: process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
-      })
-    ) {
-      return false;
-    }
-    if (!url.pathname.endsWith("/coding-plan/payment/callback")) return false;
-    const returnTo = url.searchParams.get("returnTo");
-    if (!returnTo) return false;
-    const target = new URL(returnTo, url.origin);
-    return target.origin === url.origin && isCodingPlanWebviewUrl(target.toString());
-  } catch {
-    return false;
-  }
-}
 
 function isLinuxDesktopWindow() {
   return process.platform === "linux";
@@ -267,34 +217,6 @@ function isAllowedEmbeddedBrowserNewWindowUrl(url: string): boolean {
   }
 }
 
-function isPaypalHostname(hostname: string): boolean {
-  return hostname === "paypal.com" || hostname.endsWith(".paypal.com");
-}
-
-function isCodingPlanPaypalNavigationUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return false;
-    if (isPaypalHostname(parsed.hostname)) return true;
-    // 后端下发的 PayPal approveUrl 可能先指向 Z.AI 支付 API 中转地址，
-    // 由该地址再 302 到 PayPal。中转 URL 也必须留在当前 webview，否则会被系统浏览器接管。
-    return (
-      CODING_PLAN_ZAI_PAYPAL_RELAY_HOSTS.has(parsed.hostname) &&
-      parsed.pathname.startsWith("/api/pay/paypal/")
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isAllowedCodingPlanEmbeddedNavigationUrl(url: string): boolean {
-  return (
-    isCodingPlanWebviewUrl(url) ||
-    isCodingPlanPaypalNavigationUrl(url) ||
-    isCodingPlanPaymentCallbackUrl(url)
-  );
-}
-
 function hasExternalBrowserModifier(input: Input): boolean {
   const modifiers = new Set(input.modifiers ?? []);
   return (
@@ -333,7 +255,6 @@ function shouldOpenEmbeddedBrowserRequestExternally(input: {
 function attachEmbeddedBrowserWindowOpenHandler(options: {
   hostWebContents: WebContents;
   guestWebContents: WebContents;
-  isCodingPlanGuest: boolean;
   isRewardsGuest: boolean;
   resolveBrowserViewOwner?: (webContentsId: number) =>
     | {
@@ -380,42 +301,6 @@ function attachEmbeddedBrowserWindowOpenHandler(options: {
       return { action: "deny" };
     }
 
-    // Coding Plan webview 的外链（条款/管理等 target=_blank）直接拉起系统默认浏览器，
-    // 不路由到内部 Browser tab（对齐原生购买面板行为）。回调触发时 webview URL 已
-    // 加载完成，可能因 locale 重定向变成 /cn/coding-plan，用宽松判断。
-    // 支付链接走 location.href（不触发 setWindowOpenHandler），不受影响。
-    const guestUrl =
-      typeof options.guestWebContents.getURL === "function"
-        ? options.guestWebContents.getURL()
-        : "";
-    const shouldRouteCodingPlanPopup =
-      options.isCodingPlanGuest ||
-      isCodingPlanWebviewUrl(guestUrl) ||
-      isCodingPlanPaypalNavigationUrl(guestUrl);
-    if (shouldRouteCodingPlanPopup) {
-      if (isAllowedCodingPlanEmbeddedNavigationUrl(url)) {
-        // PayPal 授权/回调是 Coding Plan 购买流程的一部分，不能走系统浏览器，
-        // 否则授权回跳会脱离当前 webview 并丢失购买上下文。popup 形态改为当前 guest 导航。
-        void options.guestWebContents.loadURL(url).catch((error: unknown) => {
-          options.logger.warn(
-            "[browser-pane] failed to load coding-plan embedded popup in webview",
-            {
-              error: error instanceof Error ? error.message : String(error),
-              url,
-            },
-          );
-        });
-        return { action: "deny" };
-      }
-      void shell.openExternal(url).catch((error: unknown) => {
-        options.logger.warn("[browser-pane] failed to open coding-plan popup externally", {
-          error: error instanceof Error ? error.message : String(error),
-          url,
-        });
-      });
-      return { action: "deny" };
-    }
-
     if (
       shouldOpenEmbeddedBrowserRequestExternally({
         disposition,
@@ -449,55 +334,6 @@ function attachEmbeddedBrowserWindowOpenHandler(options: {
     return { action: "deny" };
   });
 
-  options.guestWebContents.on("will-navigate", (event, url) => {
-    if (options.isRewardsGuest) {
-      if (
-        isTrustedRewardsUrl(url, {
-          dev: !app.isPackaged,
-          e2e: process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
-        })
-      )
-        return;
-      // 邀请页离开受信任路径必须外开，不能让第三方页面使用已注入凭据的容器。
-      event.preventDefault();
-      if (isAllowedEmbeddedBrowserNewWindowUrl(url))
-        void shell
-          .openExternal(url)
-          .catch(() => options.logger.warn("[rewards] external navigation failed"));
-      return;
-    }
-    const guestUrl =
-      typeof options.guestWebContents.getURL === "function"
-        ? options.guestWebContents.getURL()
-        : "";
-    const shouldGuardCodingPlanNavigation =
-      options.isCodingPlanGuest ||
-      isCodingPlanWebviewUrl(guestUrl) ||
-      isCodingPlanPaypalNavigationUrl(guestUrl);
-    if (!shouldGuardCodingPlanNavigation || isCodingPlanWebviewUrl(url)) {
-      return;
-    }
-    if (!isAllowedEmbeddedBrowserNewWindowUrl(url)) {
-      options.logger.warn(`[browser-pane] blocked unsupported coding-plan navigation url: ${url}`);
-      event.preventDefault();
-      return;
-    }
-    if (isAllowedCodingPlanEmbeddedNavigationUrl(url)) {
-      // 官网用 location.href 发起 PayPal 授权时会触发主 frame 导航。
-      // PayPal/中转/可信官网回跳需要留在当前 webview，后续 callback 才能继续订阅。
-      return;
-    }
-
-    // Coding Plan 专用 preload 会在后续主 frame 导航中继续存在。
-    // 离开可信购买页时必须阻断 guest 导航并交给系统浏览器，避免第三方页面继承 zcodeBridge。
-    event.preventDefault();
-    void shell.openExternal(url).catch((error: unknown) => {
-      options.logger.warn("[browser-pane] failed to open coding-plan navigation externally", {
-        error: error instanceof Error ? error.message : String(error),
-        url,
-      });
-    });
-  });
 }
 
 function buildTextContextMenuTemplate(
@@ -757,9 +593,6 @@ export function createBrowserWindow(options: {
       guestWebContents,
       hostWebContents: win.webContents,
       resolveBrowserViewOwner: options.resolveBrowserViewOwner,
-      // PayPal/relay 的 30x 重定向不保证逐跳触发 will-navigate。
-      // Coding Plan guest 身份必须按初始 src 粘住，不能由当前 URL 解防护。
-      isCodingPlanGuest: guestKind.kind === "codingPlan",
       isRewardsGuest: guestKind.isRewards,
       logger: options.logger,
     });

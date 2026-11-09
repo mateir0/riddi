@@ -40,16 +40,13 @@ import { DirectoryBrowser } from "@/DirectoryBrowser.js";
 import {
   attachRemoteProjectWorkspace,
   resolveEntryProject,
-  useWebRemoteControlRendererActions,
 } from "@/project-sidebar/index.js";
 import { useTabPersistence, type WorkspacePersistenceGate } from "@/hooks/useTabPersistence.js";
-import { useTokenRefresh } from "@/hooks/useTokenRefresh.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SSHDialog } from "@/SSHDialog.js";
 import { SettingsPage } from "@/SettingsPage.js";
 import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
-import { RewardsProvider } from "@/rewards/RewardsProvider.js";
 import { WelcomeScreen, type LoginCompleteReason } from "@/WelcomeScreen.js";
 import { setDefaultFileDisplayBasePath } from "@/lib/fileDisplay.js";
 import { readRendererLaunchTimings, shouldReportLaunchToInput } from "@/lib/launchToInputReport.js";
@@ -78,8 +75,6 @@ import { RemoteWorkspaceControllerProvider } from "@/remote/useRemoteWorkspaceCo
 import { useRootProviderStateRefresh } from "@/root/useRootProviderStateRefresh.js";
 import { useModelSelectionServiceView } from "@/hooks/useModelSelectionView.js";
 import { useRootProviderSettingsSnapshot } from "@/root/useRootProviderSettingsSnapshot.js";
-import { useWebRemoteControlAuthSync } from "@/web-remote-control/app/useWebRemoteControlAuthSync.js";
-import { useRootOAuthEffects } from "@/root/useRootOAuthEffects.js";
 import { useDesktopNativeThemeSync } from "@/root/useDesktopNativeThemeSync.js";
 import { useRootPlatformEffects } from "@/root/useRootPlatformEffects.js";
 import { useRootWorkspaceActions } from "@/root/useRootWorkspaceActions.js";
@@ -93,7 +88,6 @@ import {
   useWebRemoteControlFeatureEnabled,
 } from "@/WebRemoteControlFeatureProvider.js";
 import { useRemoteConnectionLogs } from "@/hooks/useRemoteConnectionLogs.js";
-import { useWebRemoteControlStatus } from "@/hooks/useWebRemoteControlStatus.js";
 import {
   CODE_COMMENT_REMOVE_BROADCAST_CHANNEL,
   CODE_COMMENT_PREVIEW_RESTORE_BROADCAST_CHANNEL,
@@ -108,7 +102,6 @@ import { setSessionOpenArmsReporter } from "@/lib/sessionOpenArmsTelemetry.js";
 import { setSendFunnelArmsReporter } from "@/lib/sendFunnelArmsTelemetry.js";
 import { RootStartupLoading } from "@/root/RootStartupLoading.js";
 import { resolveProviderAvailabilityState } from "@/lib/modelProviderAvailability.js";
-import { ensureProviderFamilyDomainMigration } from "@/lib/providerFamilyDomainMigration.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import { CLOSE_ACTIVE_CONTEXT_REQUEST_EVENT } from "@/lib/closeActiveContext.js";
 import { AssistantCodeCommentFeatureProvider } from "@/AssistantCodeCommentFeatureProvider.js";
@@ -176,14 +169,12 @@ export function Root(props: RootProps) {
                       <AssistantCodeCommentFeatureProvider
                         enabled={props.assistantCodeCommentCardsEnabled}
                       >
-                        <RewardsProvider desktop={props.isDesktop === true}>
-                          <RequestSecurityHost />
-                          <MarketingTouchProvider desktop={props.isDesktop === true}>
-                            <RemoteConnectionProgressProvider>
-                              <RootInner {...props} />
-                            </RemoteConnectionProgressProvider>
-                          </MarketingTouchProvider>
-                        </RewardsProvider>
+                        <RequestSecurityHost />
+                        <MarketingTouchProvider desktop={props.isDesktop === true}>
+                          <RemoteConnectionProgressProvider>
+                            <RootInner {...props} />
+                          </RemoteConnectionProgressProvider>
+                        </MarketingTouchProvider>
                       </AssistantCodeCommentFeatureProvider>
                     </WebRemoteControlFeatureProvider>
                   </DiffsWorkerPoolProvider>
@@ -263,12 +254,8 @@ function RootInner({
   const theme = useZCodeStore((state) => state.theme);
   const user = useZCodeStore((state) => state.user);
   const isRestoringOAuthSession = useZCodeStore((state) => state.isRestoringOAuthSession);
-  useWebRemoteControlAuthSync(platform, services.oauthService, user?.id, isRestoringOAuthSession);
   const setUser = useZCodeStore((state) => state.setUser);
   const setIsRestoringOAuthSession = useZCodeStore((state) => state.setIsRestoringOAuthSession);
-  const setOAuthError = useZCodeStore((state) => state.setOAuthError);
-  const oauthPollingActive = useZCodeStore((state) => state.oauthPollingActive);
-  const setOAuthPollingActive = useZCodeStore((state) => state.setOAuthPollingActive);
   const markOAuthSuccess = useZCodeStore((state) => state.markOAuthSuccess);
   const {
     settings: appSettings,
@@ -286,8 +273,6 @@ function RootInner({
   });
   const [welcomeScreenOpenReason, setWelcomeScreenOpenReason] =
     useState<WelcomeScreenOpenReason | null>(() => resolveInitialWelcomeScreenOpenReason());
-  const [providerFamilyDomainMigrationComplete, setProviderFamilyDomainMigrationComplete] =
-    useState(false);
   const loginEntryRequest = useZCodeStore((state) => state.loginEntryRequest);
   const rootModelSelectionRead = useModelSelectionServiceView(services.modelSelectionService);
   const rootModelSelectionView =
@@ -524,53 +509,18 @@ function RootInner({
     [tabStoreApi],
   );
   const webRemoteControlFeatureEnabled = useWebRemoteControlFeatureEnabled();
-  // Bugfix: WebRemoteControlDialog 只是可开关的展示入口，不能由它的本地 state 决定全局远控状态。
-  // Root 直接轮询 main 进程状态，让远控会话 running/active 成为唯一真值来源。
-  const webRemoteControlStatus = useWebRemoteControlStatus({
-    enabled: Boolean(webRemoteControlFeatureEnabled && isDesktop),
-  });
-  const webRemoteControlSessionActive =
-    webRemoteControlStatus.status === "running" || webRemoteControlStatus.status === "active";
+  // 0.9.1：Z.ai 账号门控的远控会话（relay）已整体删除，不再有远控会话状态。
+  const webRemoteControlSessionActive = false;
   const refreshProviderState = useRootProviderStateRefresh(services);
   useRootProviderSettingsSnapshot(services);
-  useEffect(() => {
-    let disposed = false;
-
-    void (async () => {
-      try {
-        await ensureProviderFamilyDomainMigration(services);
-      } catch (error) {
-        logger.warn("[Root] provider family domain 迁移失败，继续启动", {
-          error,
-        });
-      } finally {
-        if (!disposed) {
-          setProviderFamilyDomainMigrationComplete(true);
-          try {
-            await refreshAppSettings();
-            await refreshProviderState();
-          } catch (refreshError) {
-            logger.warn("[Root] provider family domain 迁移后刷新状态失败", {
-              error: refreshError,
-            });
-          }
-        }
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  }, [refreshAppSettings, refreshProviderState, services]);
-
   const shouldPreferDirectoryBrowser = Boolean(preferDirectoryBrowser);
   const supportsEmbeddedBrowser = explicitSupportsEmbeddedBrowser ?? Boolean(isDesktop);
-  const isResolvingStartupAuthState = isRestoringOAuthSession;
+  const isResolvingStartupAuthState = false;
   const rootProviderAvailability = resolveProviderAvailabilityState({
     modelSelectionView: rootModelSelectionView,
   });
   const providerStartupSyncPending = isProviderStartupSyncPending({
-    providerFamilyDomainMigrationComplete,
+    providerFamilyDomainMigrationComplete: true,
     modelSelectionViewHydrated:
       rootProviderAvailability.hydrated || rootModelSelectionRead.state.status === "error",
   });
@@ -670,7 +620,6 @@ function RootInner({
     openDirectoryBrowser: handleOpenDirectoryBrowser,
     refreshProviderState,
     updateAppSettings,
-    setOAuthError,
     setUser,
     userId: user?.id,
     onOpenRemoteConnection: allowRemoteWorkspace ? handleOpenRemoteConnection : undefined,
@@ -791,34 +740,7 @@ function RootInner({
     [activeWorkspacePath, activeWorkspaceIdentity, handleResolveConversationWorkspace, tabStoreApi],
   );
 
-  useEffect(() => {
-    if (!platform.onWebRemoteControlReconnectWorkspace) {
-      return;
-    }
-
-    return platform.onWebRemoteControlReconnectWorkspace(async (request) => {
-      try {
-        await handleReconnectRemoteWorkspace(request.workspaceKey, {
-          activateWorkspaceAfterReconnect: false,
-          showErrorToast: false,
-          throwOnFailure: true,
-        });
-        return {
-          requestId: request.requestId,
-          workspaceKey: request.workspaceKey,
-          success: true,
-        };
-      } catch (error) {
-        return {
-          requestId: request.requestId,
-          workspaceKey: request.workspaceKey,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    });
-  }, [handleReconnectRemoteWorkspace, platform]);
-  useWebRemoteControlRendererActions(platform);
+  // 0.9.1：远控 relay 的「重连远端工作区」回调已随远控链路整体删除。
 
   useEffect(() => {
     // Bugfix: fileDisplay 默认不传 basePath 时需要落到“当前激活 workspace”。
@@ -921,9 +843,6 @@ function RootInner({
     <RequestSecurityWorkspaceBridge workspaceTabs={windowWorkspaceTabs} />
   ) : null;
 
-  const { tryRefresh, clearCredentials } = useTokenRefresh();
-  void tryRefresh;
-  void clearCredentials;
   // 启动阻塞是桌面窗口保护期，手机 Web 远控在进入 Root 前已有配对/加载页。
   // Web 端继续使用该 gate 会在 workspace tab 注入前渲染空 RootShell，露出浏览器白底。
   const isStartupRenderBlocked = shouldShowRootStartupLoading({
@@ -986,9 +905,6 @@ function RootInner({
     tabs,
     activeWorkspacePath,
     activeWorkspaceIdentity,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
-    webRemoteControlFeatureEnabled,
     hasCompletedFullTabRestore: hasCompletedFullRestore,
     intl,
     isRestoringOAuthSession: isResolvingStartupAuthState || providerStartupSyncPending,
@@ -1013,25 +929,6 @@ function RootInner({
       void platform.executeDesktopCommand(DesktopCommandIds.CloseWindow);
     });
   }, [platform]);
-
-  useRootOAuthEffects({
-    accountIntentKey: JSON.stringify([
-      user?.id,
-      appSettings?.providerFamilyDomain,
-      appSettings?.providerFamilyConnectionSelections,
-    ]),
-    platform,
-    services,
-    refreshProviderState,
-    refreshAppSettings,
-    setUser,
-    setIsRestoringOAuthSession,
-    setOAuthError,
-    oauthPollingActive,
-    setOAuthPollingActive,
-    markOAuthSuccess,
-    onReauthenticationRequired: handleReauthenticationRequired,
-  });
 
   useEffect(
     () =>

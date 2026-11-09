@@ -6,7 +6,6 @@ import type {
 } from "@/project-sidebar/contract.js";
 import { attachRemoteProjectWorkspace } from "@/project-sidebar/remote-navigation.js";
 import { useRemoteWorkspaceSessionStore } from "@/store/remoteWorkspaceSessionStore.js";
-import { openWebRemoteControlTask } from "@/hooks/useWebRemoteControlTaskOpen.js";
 import { logger } from "@/logger.js";
 import { toast } from "@/components/ui/toast.js";
 import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
@@ -56,33 +55,7 @@ export function useProjectTaskNavigation(
           item.taskId === taskId &&
           (item.workspaceIdentity || item.workspacePath) === (identity || path),
       );
-      if (props.webRemoteControlWorkspaceSwitcher) {
-        if (!task) throw new Error("project.task-not-found");
-        await openWebRemoteControlTask({
-          switcher: props.webRemoteControlWorkspaceSwitcher,
-          activeWorkspacePath: props.workspacePath,
-          activeWorkspaceIdentity: activeWorkspaceIdentity ?? undefined,
-          activeTaskId: null,
-          task: {
-            ...task,
-            workspacePath: path,
-            workspaceIdentity: identity,
-            taskId,
-            unreadAt,
-            workspaceLabel: path,
-            workspaceKind: task.hostId === "local" ? "local" : "remote",
-          },
-          markTaskReadOnOpen: true,
-          mobileNavigationIntent: "chat",
-          onSelectTask: props.onSelectTask,
-          onTaskOpen: props.onWebRemoteTaskOpen,
-          onSwitchingChange: props.onWebRemoteTaskSwitchingChange,
-          setError: (error) => {
-            if (error) toast(error);
-          },
-        });
-        return;
-      }
+      // 0.9.1：手机远控 relay（Z.ai 账号门控）已整体删除，远控任务打开分支随之移除。
       if (identity && task && remoteService) {
         const directory = await remoteService.readDirectory();
         if (!isCurrent()) return;

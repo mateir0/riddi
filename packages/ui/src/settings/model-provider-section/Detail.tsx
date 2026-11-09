@@ -1,16 +1,14 @@
 /* eslint-disable max-lines -- Model Provider 详情页当前集中编排 Plan Card、API Key 表单和 OAuth 套餐态；后续稳定后再按 family/API/OAuth 拆分。 */
 import {
-  BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
-  ZAI_PROVIDER_ID,
   type BuiltinModelProviderId,
   type ProviderFamilyConnectionSelectionSettings,
   isStartPlanModelProviderId,
   isIndividualCodingPlanModelProviderId,
-  resolveModelProviderFamilySpecByProviderId,
   type ModelConnectivityResult,
   type OAuthProviderId,
 } from "@zcode/shared";
+import { resolveModelProviderFamilySpecByProviderId } from "@/settings/model-provider-section/providerFamilySpec.js";
 import {
   getProviderFormApiKeyManagementUrl,
   type ProviderSettingsFormProvider,
@@ -50,7 +48,6 @@ import {
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
 import type { ProviderSettingsView } from "@zcode/services";
 import type { SavePersonalModelDraftInput } from "@zcode/provider";
-import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 import { projectProviderSettingsViewToFormProviders } from "@/lib/providerSettingsFormProjection.js";
 
 const TEAM_PLAN_ENTRY_BANNER_CLASS =
@@ -325,21 +322,10 @@ export function ModelProviderSectionDetail({
     if (!isPlanNavItem(selectedNavItem)) return undefined;
     if (selectedNavItem.type === "teamPlan")
       return resolveTeamPlanInspectionAccess(selectedNavItem);
-    const access = resolveAccountProviderInspectionAccess(
-      providerSettingsView,
-      selectedNavItem.presetId,
-    );
-    if (
-      !access ||
-      (access.access.mode !== "start-plan" && access.access.mode !== "individual-coding-plan")
-    )
-      return undefined;
-    return {
-      type: "zhipu-account" as const,
-      family: access.access.accountType,
-      planKind: access.access.mode,
-    };
-  }, [providerSettingsView, selectedNavItem]);
+    // 0.9.1：账号检查访问（resolveAccountProviderInspectionAccess）已随账号链路删除，
+    // 个人套餐不再提供账号重置入口。
+    return undefined;
+  }, [selectedNavItem]);
   const selectedTeamPlanContext = useMemo(
     () =>
       hasTeamPlanContext(selectedNavItem)
@@ -469,10 +455,8 @@ export function ModelProviderSectionDetail({
         : selectedNavItem.status === "notPurchased");
     // Start 已由 Account 快照确认可用时，额度查询清空/刷新自己的缓存不能卸载编辑器。
     // 未取得套餐时不展示可执行模型；配置区不依赖额度请求的临时 loading 状态。
-    const accountAvailable =
-      providerSettingsView?.providers.find(
-        (provider) => provider.providerId === selectedNavItem.presetId,
-      )?.accountState?.availability === "available";
+    // 0.9.2：账号状态（accountState）随账号 provider 链路整体删除，账号始终不可用。
+    const accountAvailable = false;
     const hidePlanModels =
       hasNoPlanEntitlement ||
       selectedNavItem.status === "disconnected" ||
@@ -481,10 +465,7 @@ export function ModelProviderSectionDetail({
       dedicatedProvider !== null &&
       !hidePlanModels &&
       (!isStartPlanProvider || accountAvailable || selectedNavItem.status === "purchased");
-    const reloginOnFailure =
-      selectedNavItem.type === "codingPlan" &&
-      isIndividualCodingPlanModelProviderId(selectedNavItem.presetId) &&
-      selectedNavItem.provider?.accountState?.unavailableReason === "credential-failed";
+    const reloginOnFailure = false;
     // 团队查询/取 Key 失败不是未登录：先刷新 Host 凭据，再刷新当前团队权益。
     const retryTeamPlan =
       selectedNavItem.type === "teamPlan" &&
@@ -513,18 +494,7 @@ export function ModelProviderSectionDetail({
     );
     // 团队导航在 pricing 返回历史 subscribed 时也可能标为 purchased。购买/升级入口
     // 只读取 Account owner 已确认的权益，不能把商品目录的展示状态当成当前权益。
-    const hasActivePaidPlan = navigationItems.some(
-      (item) =>
-        (item.type === "teamPlan" ||
-          (item.type === "codingPlan" && isIndividualCodingPlanModelProviderId(item.presetId))) &&
-        item.oauthProviderId === selectedNavItem.oauthProviderId &&
-        providerSettingsView?.providers.some(
-          (provider) =>
-            provider.providerId === item.presetId &&
-            provider.accountState?.availability === "available" &&
-            provider.accountState.entitled,
-        ),
-    );
+    const hasActivePaidPlan = false;
     const planSupplementalContent =
       isStartPlanProvider && hasActivePaidPlan ? null : accessBanner ? (
         <CodingPlanAccessBanner title={accessBanner.title} description={accessBanner.description} />
@@ -567,9 +537,8 @@ export function ModelProviderSectionDetail({
           }
           onOpenPurchase={onOpenApiKeyUrl}
           onDisconnect={
-            (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID ||
-              selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID) &&
-            dedicatedProvider.providerId === selectedNavItem.presetId
+            // 0.9.1：账号断连入口随 Z.ai / BigModel 账号链路整体删除。
+            false
               ? () => {
                   onCodingPlanDisconnect(
                     selectedNavItem.presetId,
@@ -593,8 +562,7 @@ export function ModelProviderSectionDetail({
             (selectedNavItem.status === "unavailable" ||
               selectedNavItem.statusLabelId ===
                 "settings.modelProvider.codingPlan.status.unavailable" ||
-              (isIndividualCodingPlanModelProviderId(selectedNavItem.presetId) &&
-                selectedNavItem.provider?.accountState?.unavailableReason === "credential-failed"))
+              (isIndividualCodingPlanModelProviderId(selectedNavItem.presetId) && false))
               ? onRetryCodingPlan
               : undefined)
           }
@@ -710,18 +678,14 @@ export function ModelProviderSectionDetail({
               (selectedNavItem.status === "unavailable" ||
                 selectedNavItem.statusLabelId ===
                   "settings.modelProvider.codingPlan.status.unavailable" ||
-                (isIndividualCodingPlanModelProviderId(selectedNavItem.presetId) &&
-                  selectedNavItem.provider?.accountState?.unavailableReason ===
-                    "credential-failed"))
+                (isIndividualCodingPlanModelProviderId(selectedNavItem.presetId) && false))
                 ? onRetryCodingPlan
                 : undefined)
             }
             onOpenPurchase={onOpenApiKeyUrl}
             onDisconnect={
-              (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID ||
-                selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID) &&
-              selectedNavItem.provider?.providerId === selectedNavItem.presetId &&
-              selectedNavItem.status !== "disconnected"
+              // 0.9.1：账号断连入口随 Z.ai / BigModel 账号链路整体删除。
+              false
                 ? () => {
                     onCodingPlanDisconnect(
                       selectedNavItem.presetId,

@@ -1,8 +1,8 @@
 import {
-  resolveModelProviderFamilySpecByProviderId,
   isStartPlanModelProviderId,
   type ProviderFamilyConnectionSelectionSettings,
 } from "@zcode/shared";
+import { resolveModelProviderFamilySpecByProviderId } from "@/settings/model-provider-section/providerFamilySpec.js";
 import {
   TID_MODEL_PROVIDER_CONNECTION_MODE_ITEM,
   TID_MODEL_PROVIDER_CONNECTION_MODE_TRIGGER,

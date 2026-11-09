@@ -5,8 +5,6 @@ import {
 import {
   ProviderRegistryService,
   ProviderSettingsFacade,
-  createFailClosedAccountProviderConfigSnapshot,
-  type AccountProviderConfigSnapshot,
   type ProviderConfigSnapshot,
   type ProviderSettingsMutationTarget,
   type ProviderSource,
@@ -29,14 +27,11 @@ import { createServiceLogger } from "#src/logger/serviceLogger.js";
 const log = createServiceLogger("provider-runtime");
 
 export interface ProviderRuntimeOptions extends ProviderConfigRuntimeOptions {
-  readonly accountSource?: RefreshableProviderSource<AccountProviderConfigSnapshot>;
   readonly testConnectivity?: ProviderSettingsConnectivityTester;
 }
 
 export interface ProviderRuntimeDependencies {
   readonly configRuntime: ProviderConfigRuntime;
-  readonly accountSource?: RefreshableProviderSource<AccountProviderConfigSnapshot>;
-  readonly disposeAccountSource?: () => void;
   readonly testConnectivity?: ProviderSettingsConnectivityTester;
   readonly modelSelectionConfiguredDefaultSource?: ModelSelectionConfiguredDefaultSource;
   readonly disposeModelSelectionConfiguredDefaultSource?: () => void;
@@ -46,22 +41,6 @@ interface RefreshableProviderSource<TSnapshot> extends ProviderSource<TSnapshot>
   refresh?(reason: string): Promise<TSnapshot>;
 }
 
-/**
- * 普通 API Provider 可以在账号能力尚未装配时独立运行。
- * Account Provider 由当前 Built-in revision 对齐的 access.entitled=false Overlay 显式 fail-closed。
- */
-export class EmptyAccountProviderConfigSource implements ProviderSource<AccountProviderConfigSnapshot> {
-  constructor(readonly configSource: ProviderSource<ProviderConfigSnapshot>) {}
-
-  async read(): Promise<AccountProviderConfigSnapshot> {
-    return createFailClosedAccountProviderConfigSnapshot(await this.configSource.read());
-  }
-
-  onDidChange(): () => void {
-    return () => {};
-  }
-}
-
 /** 组装一个进程内共享的 Provider Config、Registry 与 Facade。 */
 export class ProviderRuntime {
   readonly configService: ProviderConfigRuntime["configService"];
@@ -69,7 +48,6 @@ export class ProviderRuntime {
   readonly providerSettings: IProviderSettingsService;
   readonly modelSelection: IModelSelectionService;
   readonly #configRuntime: ProviderConfigRuntime;
-  readonly #disposeAccountSource?: () => void;
   readonly #disposeBuiltinRecovery: () => void;
   readonly #modelSelectionRuntime: IModelSelectionService & { dispose(): void };
   readonly #disposeModelSelectionConfiguredDefaultSource?: () => void;
@@ -78,30 +56,20 @@ export class ProviderRuntime {
 
   constructor(dependencies: ProviderRuntimeDependencies) {
     this.#configRuntime = dependencies.configRuntime;
-    this.#disposeAccountSource = dependencies.disposeAccountSource;
     this.#disposeModelSelectionConfiguredDefaultSource =
       dependencies.disposeModelSelectionConfiguredDefaultSource;
     this.configService = this.#configRuntime.configService;
-    const accountSource: RefreshableProviderSource<AccountProviderConfigSnapshot> =
-      dependencies.accountSource ?? new EmptyAccountProviderConfigSource(this.configService);
     this.#disposeBuiltinRecovery = this.#configRuntime.onDidCheckZCodeBuiltin(async () => {
-      const [config, account] = await Promise.all([
-        this.configService.read(),
-        accountSource.read(),
-      ]);
-      if (!this.#disposed && config.zcodeBuiltinRevision !== account.basedOnZCodeBuiltinRevision) {
-        await accountSource.refresh?.("builtin-account-recovery");
+      const config = await this.configService.read();
+      if (!this.#disposed) {
+        await this.#configRuntime.refreshZCodeBuiltin({ force: false });
+        void config;
       }
     });
     this.registryService = new ProviderRegistryService({
       configSource: this.configService,
-      accountSource,
     });
-    const mutations = createSettingsMutationTarget(
-      this.#configRuntime,
-      this.registryService,
-      accountSource,
-    );
+    const mutations = createSettingsMutationTarget(this.#configRuntime, this.registryService);
     const ensureReady = () => this.start();
     const settingsFacade = new ProviderSettingsFacade(this.registryService, mutations);
     this.providerSettings = createProviderSettingsService(
@@ -134,7 +102,6 @@ export class ProviderRuntime {
     this.#disposeBuiltinRecovery();
     this.#modelSelectionRuntime.dispose();
     this.registryService.dispose();
-    this.#disposeAccountSource?.();
     this.#disposeModelSelectionConfiguredDefaultSource?.();
     this.#configRuntime.dispose();
   }
@@ -143,7 +110,6 @@ export class ProviderRuntime {
 function createSettingsMutationTarget(
   configRuntime: ProviderConfigRuntime,
   registryService: ProviderRegistryService,
-  accountSource: RefreshableProviderSource<AccountProviderConfigSnapshot>,
 ): ProviderSettingsMutationTarget {
   const configService = configRuntime.configService;
   return {
@@ -182,34 +148,28 @@ function createSettingsMutationTarget(
       ),
     refresh: (reason) => registryService.refresh(reason),
     refreshSources: async (reason) => {
-      const [builtinResult, accountResult] = await Promise.allSettled([
-        configRuntime.refreshZCodeBuiltin({ force: true }),
-        accountSource.refresh?.(reason) ?? Promise.resolve(),
-      ]);
-      // 远端更新失败不代表本地配置不可用；此前统一抛错会让套餐切换回滚，
-      // 并掩盖真正的账号失败。只降级远端更新，Config/Registry 和权益错误仍保留。
-      if (builtinResult.status === "rejected") {
+      // 远端更新失败不代表本地配置不可用；只降级远端更新，Config/Registry 仍可用。
+      try {
+        await configRuntime.refreshZCodeBuiltin({ force: true });
+      } catch (error) {
         log.warn(undefined, "Builtin 远端更新失败，继续使用本地配置", {
           reason,
-          error: builtinResult.reason,
+          error,
         });
       }
-      const snapshot = await registryService.refresh(reason);
-      if (accountResult.status === "rejected") throw accountResult.reason;
-      return snapshot;
+      return registryService.refresh(reason);
     },
   };
 }
 
 export function createProviderRuntime(options: ProviderRuntimeOptions): ProviderRuntime {
-  const { accountSource, testConnectivity, ...configRuntimeOptions } = options;
+  const { testConnectivity, ...configRuntimeOptions } = options;
   const configRuntime = createProviderConfigRuntime(configRuntimeOptions);
   const modelSelectionConfiguredDefaultSource = new NodeModelSelectionConfigRepository({
     personalRepository: configRuntime.personalRepository,
   });
   return createProviderRuntimeFromConfigRuntime({
     configRuntime,
-    accountSource,
     testConnectivity,
     modelSelectionConfiguredDefaultSource,
     disposeModelSelectionConfiguredDefaultSource: () =>

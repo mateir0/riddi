@@ -17,21 +17,19 @@ import {
 import type { ICredentialService } from "../credential/credential.js";
 import type { ISettingService } from "../setting/setting.js";
 import type { ProviderRuntime } from "./providerRuntime.js";
-import type { AccountProviderService } from "@zcode/provider";
 import type { IProviderProvisioningTargetService } from "./providerProvisioning.js";
 import {
-  PROVIDER_PROVISIONING_OAUTH_CREDENTIAL_KEYS,
+  PROVIDER_PROVISIONING_CREDENTIAL_KEYS,
   readProvisionablePersonalConfig,
 } from "./providerProvisioningSource.js";
 
 const PROVISIONING_SCHEMA_VERSION = 1 as const;
 
-const OAUTH_CREDENTIAL_KEYS = new Set<string>(PROVIDER_PROVISIONING_OAUTH_CREDENTIAL_KEYS);
+const PROVISIONING_CREDENTIAL_KEYS = new Set<string>(PROVIDER_PROVISIONING_CREDENTIAL_KEYS);
 
 export interface ProviderProvisioningTargetOptions {
   readonly providerRuntime: ProviderRuntime;
   readonly personalRepository: PersonalProviderConfigRepository;
-  readonly accountProviderSource: AccountProviderService;
   readonly credentialService: ICredentialService;
   readonly settingService: ISettingService;
   readonly personalConfigFilePath: string;
@@ -70,9 +68,8 @@ export function createProviderProvisioningTarget(
 
         validateCredentialEntries(envelope);
         // schema v1 接受旧 Source 的账号 Key 字段，但新 Host 不再读取或应用它。
-        // 旧/手工 Key 留在原 Store，避免升级同步误删其它客户端共享的凭据。
-        const oauthCredentials = envelope.credentials.filter(
-          (entry) => entry.scope === "oauth-session",
+        const provisionedCredentials = envelope.credentials.filter(
+          (entry) => PROVISIONING_CREDENTIAL_KEYS.has(entry.key),
         );
         await options.providerRuntime.start();
         const before = await captureBeforeState(envelope, options);
@@ -110,7 +107,7 @@ export function createProviderProvisioningTarget(
           );
 
           const incomingCredentials = new Map(
-            oauthCredentials.map((credential) => [credential.key, credential.value]),
+            provisionedCredentials.map((credential) => [credential.key, credential.value]),
           );
           for (const key of before.credentials.keys()) {
             const value = incomingCredentials.get(key);
@@ -129,7 +126,6 @@ export function createProviderProvisioningTarget(
           });
 
           errorCode = "target-refresh-failed";
-          await options.accountProviderSource.refresh("provider-provisioning");
           const snapshot =
             await options.providerRuntime.registryService.refresh("provider-provisioning");
           // 失效默认只是新会话偏好；把它当同步硬条件会让正常 SSH 被旧模型/档位阻断。
@@ -139,7 +135,7 @@ export function createProviderProvisioningTarget(
             syncId: envelope.syncId,
             status: "applied" as const,
             personalProviderCount: personalUpdate.providers.keys().length,
-            credentialCount: oauthCredentials.length,
+            credentialCount: provisionedCredentials.length,
             configRevision: snapshot.sourceRevisions.config,
             rolledBack: false,
           } satisfies ProviderProvisioningResult;
@@ -155,7 +151,7 @@ export function createProviderProvisioningTarget(
               syncId: envelope.syncId,
               status: "rollback_failed",
               personalProviderCount: before.personal.providers.keys().length,
-              credentialCount: oauthCredentials.length,
+              credentialCount: provisionedCredentials.length,
               errorMessage: `${formatError(error)}；回滚失败：${formatError(rollbackError)}`,
               errorCode,
               rolledBack: false,
@@ -165,7 +161,7 @@ export function createProviderProvisioningTarget(
             syncId: envelope.syncId,
             status: "failed",
             personalProviderCount: before.personal.providers.keys().length,
-            credentialCount: oauthCredentials.length,
+            credentialCount: provisionedCredentials.length,
             errorMessage: formatError(error),
             errorCode,
             rolledBack: true,
@@ -206,12 +202,12 @@ async function captureBeforeState(
   ]);
   const credentials = new Map<string, string | null>();
   const credentialKeys = new Set<string>([
-    ...OAUTH_CREDENTIAL_KEYS,
+    ...PROVISIONING_CREDENTIAL_KEYS,
     ...((await options.listProvisioningCredentialKeys?.()) ?? []),
     ...envelope.credentials.map((entry) => entry.key),
   ]);
   for (const key of credentialKeys) {
-    if (!OAUTH_CREDENTIAL_KEYS.has(key)) {
+    if (!PROVISIONING_CREDENTIAL_KEYS.has(key)) {
       continue;
     }
     credentials.set(key, await options.credentialService.load(key));
@@ -296,7 +292,7 @@ async function rollback(
     return new Error(errors.map(formatError).join("；"));
   }
   try {
-    await options.accountProviderSource.refresh("provider-provisioning-rollback");
+    await options.providerRuntime.registryService.refresh("provider-provisioning-rollback");
     await options.providerRuntime.registryService.refresh("provider-provisioning-rollback");
   } catch (error) {
     return error instanceof Error ? error : new Error(String(error));
@@ -336,7 +332,7 @@ function validateCredentialEntries(envelope: ProviderProvisioningEnvelope): void
     if (seen.has(entry.key)) throw new Error(`重复 Provisioning Credential key: ${entry.key}`);
     seen.add(entry.key);
     const allowed =
-      (entry.scope === "oauth-session" && OAUTH_CREDENTIAL_KEYS.has(entry.key)) ||
+      (PROVISIONING_CREDENTIAL_KEYS.has(entry.key)) ||
       (entry.scope === "account-provider" && isProviderProvisioningAccountCredentialKey(entry.key));
     if (!allowed) throw new Error(`不允许同步的 Credential key: ${entry.key}`);
   }
