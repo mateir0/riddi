@@ -2,7 +2,7 @@ import { requestSecurityEndpointEnv } from "./request-security-edition/index.js"
 
 const LIVE_TEAM_SPEC = "conversation-session-r3-live-bigmodel-team.test.ts";
 const LIVE_SHARE_SPEC = "conversation-session-share-ssh-artifact.test.ts";
-const PRODUCTION_E2E_PROVIDER_CONFIG_ORIGIN = "https://zcode.z.ai";
+const PRODUCTION_E2E_PROVIDER_CONFIG_ORIGIN = "http://localhost:8787";
 
 export function getE2EProviderEndpointEnv(
   specs: readonly string[],
