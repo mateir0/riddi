@@ -406,7 +406,10 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
       (messageEnabled
         ? createNodeSessionMailboxAdapter({
             rootDir: resolvePath(
-              (options.env ?? process.env).ZCODE_MAILBOX_ROOT ?? "~/.zcode/mailbox",
+              // 0.9e：与 0.4（3926d117）的数据根改名保持一致，本地默认 mailbox 根从
+              // ~/.zcode/mailbox 落到 ~/.riddi/mailbox。ZCODE_MAILBOX_ROOT 仍然优先，
+              // 未设置时才使用这里的默认值。
+              (options.env ?? process.env).ZCODE_MAILBOX_ROOT ?? "~/.riddi/mailbox",
             ),
           })
         : undefined);

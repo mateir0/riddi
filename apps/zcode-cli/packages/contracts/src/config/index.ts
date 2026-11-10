@@ -299,8 +299,10 @@ export const DefaultRuntimeConfig: RuntimeConfig = {
     allowMediumRiskInAuto: false,
   },
   storage: {
-    dir: "~/.zcode",
-    sessionDbPath: "~/.zcode/cli/db/db.sqlite",
+    // 0.9e：与 0.4（3926d117）的数据根改名保持一致，本地默认数据根从 ~/.zcode 落到 ~/.riddi。
+    // 仅改默认值：ZCODE_STORAGE_DIR / ZCODE_DATA_BASE_DIR 覆盖的优先级与解析路径不变。
+    dir: "~/.riddi",
+    sessionDbPath: "~/.riddi/cli/db/db.sqlite",
   },
   network: {
     timeout: 180000,

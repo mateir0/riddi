@@ -570,7 +570,8 @@ describe("SQLite session store", () => {
   });
 
   it("defaults the session database under the db directory", () => {
-    expect(getDefaultSessionDbPath()).toBe(join(homedir(), ".zcode", "cli", "db", "db.sqlite"));
+    // 0.9e：默认数据根已随 0.4（3926d117）的改名落到 ~/.riddi；本断言原本写死 ~/.zcode。
+    expect(getDefaultSessionDbPath()).toBe(join(homedir(), ".riddi", "cli", "db", "db.sqlite"));
   });
 
   it("can inject sqlite open failures for startup/recovery cases", async () => {

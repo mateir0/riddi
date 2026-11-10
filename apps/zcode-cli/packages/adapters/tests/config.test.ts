@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createConfig,
+  resolvePath,
   resolveWorkspaceStorageDir,
   updateUiLocaleInFileConfig,
 } from "../src/config/index.js";
+import { getDefaultSessionDbPath } from "../src/storage/session-store/paths.js";
 import { parseEnvConfig } from "../src/config/env-config.adapter.js";
 import {
   addSuppressedBuiltinInFileConfig,
@@ -25,7 +27,9 @@ describe("config adapters", () => {
       // 修复原因（STALE）：fork 提交 3926d117 已把 CLI 用户配置根从 ~/.zcode/cli 迁到 ~/.riddi/cli
       // （src/config/file-config.adapter.ts 的 DEFAULT_BASE_DIR）。本夹具仍写旧目录名，
       // 导致 resolveWorkspaceStorageDir 内部按默认路径读不到这份用户配置，回落到
-      // DefaultRuntimeConfig.storage.dir（"~/.zcode"）而不是断言的用户 storage.dir。
+      // 0.9e：DefaultRuntimeConfig.storage.dir 已改为 "~/.riddi"（与 0.4 改名对齐）。
+      // 本断言语义是"用户级 storage.dir 优先于默认值"；默认值本身是什么不影响这条语义。
+      // DefaultRuntimeConfig.storage.dir（"~/.riddi"）而不是断言的用户 storage.dir。
       // 只更新夹具目录名，被断言的“用户级 storage.dir 优先于默认值”语义不变。
       const userPath = join(root, ".riddi", "cli", "config.json");
       const projectPath = join(root, fileName);
@@ -2062,6 +2066,58 @@ describe("config adapters", () => {
     const removed = await removeSuppressedBuiltinInFileConfig(path, id);
     expect(removed.suppressed).toBe(false);
     expect(JSON.parse(await readFile(path, "utf8")).plugins.suppressedBuiltins).toEqual([]);
+  });
+
+  // 0.9e 配对路径证明：不读任何 user config、不注入任何 env 覆盖时，
+  // storage 根与 session DB 必须成对落在 ~/.riddi 下，而不是 0.4 改名时漏掉的 ~/.zcode。
+  // dir 与 sessionDbPath 必须同根——只改其中一个会让 CLI 与 services 落到两棵树上。
+  // 注意 resolveWorkspaceStorageDir 返回的是未展开的默认字面量；展开发生在消费侧的
+  // resolvePath(config.storage.dir)（bootstrap create-app），所以两处都要断言。
+  it("pairs the default storage dir and session database path under ~/.riddi", async () => {
+    const root = await mkdtemp(join(tmpdir(), "zcode-config-default-storage-root-"));
+
+    try {
+      vi.stubEnv("HOME", root);
+      vi.stubEnv("USERPROFILE", root);
+
+      const storage = createConfig({ env: {}, skipUserConfig: true }).config.storage;
+
+      expect(storage.dir).toBe("~/.riddi");
+      expect(storage.sessionDbPath).toBe("~/.riddi/cli/db/db.sqlite");
+      expect(storage.sessionDbPath.startsWith(`${storage.dir}/`)).toBe(true);
+
+      expect(resolveWorkspaceStorageDir({ env: {}, workingDirectory: root })).toBe("~/.riddi");
+      expect(resolvePath(storage.dir, { env: { HOME: root, USERPROFILE: root } })).toBe(
+        join(root, ".riddi"),
+      );
+      expect(getDefaultSessionDbPath()).toBe(join(root, ".riddi", "cli", "db", "db.sqlite"));
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  // 0.9e：改名只动默认值。显式覆盖必须仍然赢，且优先级与改名前的语义一致。
+  // 本套件的隔离约定是显式传 env 对象，因此覆盖也走同一个入参，而不是依赖 process.env。
+  it("keeps ZCODE_STORAGE_DIR winning over the ~/.riddi default", async () => {
+    const root = await mkdtemp(join(tmpdir(), "zcode-config-storage-override-"));
+    const custom = join(root, "custom-storage");
+
+    try {
+      vi.stubEnv("HOME", root);
+      vi.stubEnv("USERPROFILE", root);
+      const env = { ZCODE_STORAGE_DIR: custom };
+
+      expect(resolveWorkspaceStorageDir({ env, workingDirectory: root })).toBe(custom);
+      expect(createConfig({ env, skipUserConfig: true }).config.storage.dir).toBe(custom);
+      // sessionDbPath 不随 storage.dir 覆盖联动，这一点与改名前一致，保持不变。
+      expect(createConfig({ env, skipUserConfig: true }).config.storage.sessionDbPath).toBe(
+        "~/.riddi/cli/db/db.sqlite",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

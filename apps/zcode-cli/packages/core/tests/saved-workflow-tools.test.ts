@@ -71,9 +71,9 @@ afterEach(() => {
   while (cwds.length > 0) rmSync(cwds.pop()!, { force: true, recursive: true });
 });
 
-/** 全局档落点（HOME 已被 beforeEach 指到 testHome）。 */
+/** 全局档落点（HOME 已被 beforeEach 指到 testHome）。0.9e 起全局根是 ~/.riddi/workflows。 */
 function globalSavedPath(name: string): string {
-  return join(testHome, ".zcode/workflows", `${name}.dwf.ts`);
+  return join(testHome, ".riddi/workflows", `${name}.dwf.ts`);
 }
 
 // 记忆槽是单槽、按脚本原文取键，所以每个用例用自己的脚本；否则上一个用例存下的分析

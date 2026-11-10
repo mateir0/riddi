@@ -22,10 +22,13 @@ export function isValidSavedWorkflowNameText(name: string): boolean {
 /**
  * 落点预览。项目档写相对路径（用户在自己的仓库里看到的就是它），全局档写 `~` 开头的家目录路径
  * ——那是 **agent 机器**的家目录，远程项目因此根本不给全局档这个选项。
+ *
+ * 0.9e：全局档根目录随 SAVED_WORKFLOW_GLOBAL_DIR 从 ~/.zcode/workflows 改到 ~/.riddi/workflows，
+ * 预览字符串必须与真实落点一致，否则用户按提示找到的路径并不存在。
  */
 export function savedWorkflowPathPreview(scope: ZCodeSavedWorkflowScope, name: string): string {
   const file = `${name}.dwf.ts`;
-  return scope === "global" ? `~/.zcode/workflows/${file}` : `.zcode/workflows/${file}`;
+  return scope === "global" ? `~/.riddi/workflows/${file}` : `.zcode/workflows/${file}`;
 }
 
 export interface WorkflowSaveDraft {

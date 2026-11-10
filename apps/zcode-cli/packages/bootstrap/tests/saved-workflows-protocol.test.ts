@@ -34,7 +34,7 @@ const SCRIPT = [
 ].join("\n");
 
 let cwd = "";
-// 每个用例一份隔离的 HOME：全局档落在 `<HOME>/.zcode/workflows/`，core 恒取 `os.homedir()`
+// 每个用例一份隔离的 HOME：全局档落在 `<HOME>/.riddi/workflows/`，core 恒取 `os.homedir()`
 // （posix 上即 `$HOME`）。不隔离的话 list/get/move 的全局变体会读到真实家目录、结果非确定。
 let home = "";
 let prevHome: string | undefined;
@@ -55,8 +55,10 @@ function projectDir() {
   return join(cwd, ".zcode", "workflows");
 }
 
+// 0.9e：全局档根随 SAVED_WORKFLOW_GLOBAL_DIR 从 ~/.zcode/workflows 改到 ~/.riddi/workflows。
+// 项目档按设计仍留在 workspace 的 .zcode/workflows 下。
 function globalDir() {
-  return join(home, ".zcode", "workflows");
+  return join(home, ".riddi", "workflows");
 }
 
 async function seedWorkflow(name: string, meta: Parameters<typeof serializeSavedWorkflow>[0]) {
@@ -443,7 +445,7 @@ describe("workflows/* protocol methods", () => {
 });
 
 // 全局作用域（docs/dynamic-workflow/launch.md）：五个方法的定向 `scope` 变体 + workflows/move。
-// 全局档落在隔离的 `<HOME>/.zcode/workflows/`（见顶部 beforeEach）；同名的项目档不受牵连。
+// 全局档落在隔离的 `<HOME>/.riddi/workflows/`（见顶部 beforeEach）；同名的项目档不受牵连。
 describe("workflows/* 全局作用域与 workflows/move", () => {
   it("list：项目变体只列项目档 + dir=项目根（即使目录不存在）；全局变体只列全局档 + dir=全局根", async () => {
     // 项目根不存在也回 dir（GUI 靠它 watch）。
