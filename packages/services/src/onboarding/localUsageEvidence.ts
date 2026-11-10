@@ -30,7 +30,12 @@ import { DatabaseSync } from "node:sqlite";
  * 一律上抛由 UI 保守判不弹——读不了 ≠ 没有。
  */
 
-const DEFAULT_SESSION_DB_PATH = "~/.zcode/cli/db/db.sqlite";
+// 修复原因（0.9e）：本文件是 CLI 默认路径在桌面 host 侧的镜像。0.4（3926d117）把 CLI
+// 用户数据根迁到 ~/.riddi 后这里没跟上；0.9e 修正 DefaultRuntimeConfig 默认值后，
+// 若不同步，host 会去读一个 CLI 永远不会写入的路径，onboarding 的“本机已有使用证据”
+// 判定因此失真。用户配置路径与 session DB 默认值必须一起改，只改一个会让同一个函数
+// 内部自相矛盾。
+const DEFAULT_SESSION_DB_PATH = "~/.riddi/cli/db/db.sqlite";
 
 /** 目录非空。仅 ENOENT 视为"无证据"；其他异常上抛，由 UI 侧保守判不弹。 */
 async function hasDirEntry(dir: string): Promise<boolean> {
@@ -68,7 +73,7 @@ export interface ResolveAgentSessionDbPathOptions {
   env?: NodeJS.ProcessEnv;
   /** 默认 os.homedir()。 */
   homedirPath?: string;
-  /** 默认 ~/.zcode/cli/config.json（CLI createConfig 的默认 user config 位置）。 */
+  /** 默认 ~/.riddi/cli/config.json（CLI createConfig 的默认 user config 位置）。 */
   userConfigPath?: string;
   readConfigFile?: (path: string) => Promise<string>;
 }
@@ -89,9 +94,10 @@ export async function resolveAgentSessionDbPath(
   const fromEnv = pickEnvSessionDbPath(env);
   if (fromEnv) return resolveMirroredSessionDbPath(fromEnv, home);
 
-  // CLI createConfig 的默认 user config 位置在 home（~/.zcode/cli/config.json），
+  // CLI createConfig 的默认 user config 位置在 home（~/.riddi/cli/config.json，
+  // 见 adapters/src/config/file-config.adapter.ts 的 DEFAULT_BASE_DIR），
   // 与 App dataBaseDir 无关（评审三轮 CR-01 第 1 条，zcode-protocol-entrypoint 实证）。
-  const userConfigPath = options.userConfigPath ?? join(home, ".zcode", "cli", "config.json");
+  const userConfigPath = options.userConfigPath ?? join(home, ".riddi", "cli", "config.json");
   let raw: string;
   try {
     raw = await readConfigFile(userConfigPath);
