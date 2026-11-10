@@ -15,14 +15,19 @@ import {
 } from "../src/config/file-config.adapter.js";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 describe("config adapters", () => {
   it.each(["zcode.json", ".zcode/config.json", "explicit-project.json"])(
     "restricts project runtime parameters while retaining extension settings in %s",
     async (fileName) => {
       const root = await mkdtemp(join(tmpdir(), "zcode-project-runtime-boundary-"));
-      const userPath = join(root, ".zcode", "cli", "config.json");
+      // 修复原因（STALE）：fork 提交 3926d117 已把 CLI 用户配置根从 ~/.zcode/cli 迁到 ~/.riddi/cli
+      // （src/config/file-config.adapter.ts 的 DEFAULT_BASE_DIR）。本夹具仍写旧目录名，
+      // 导致 resolveWorkspaceStorageDir 内部按默认路径读不到这份用户配置，回落到
+      // DefaultRuntimeConfig.storage.dir（"~/.zcode"）而不是断言的用户 storage.dir。
+      // 只更新夹具目录名，被断言的“用户级 storage.dir 优先于默认值”语义不变。
+      const userPath = join(root, ".riddi", "cli", "config.json");
       const projectPath = join(root, fileName);
       const skillPath = join(root, "skills", "demo", "SKILL.md");
       const commandPath = join(root, "commands", "demo.md");
@@ -74,8 +79,11 @@ describe("config adapters", () => {
         vi.stubEnv("HOME", root);
         vi.stubEnv("USERPROFILE", root);
         await mkdir(join(root, ".git"));
-        await mkdir(join(root, ".zcode", "cli"), { recursive: true });
+        await mkdir(join(root, ".riddi", "cli"), { recursive: true });
         await writeFile(userPath, JSON.stringify(userConfig));
+        // 项目配置文件名之一就是 `.zcode/config.json`（workspace 级配置位置，与用户数据目录改名无关），
+        // 这里按 projectPath 自身父目录建目录，避免再依赖用户配置 mkdir 的副作用。
+        await mkdir(dirname(projectPath), { recursive: true });
         await writeFile(projectPath, JSON.stringify(projectConfig));
         const baseline = createConfig({ env: {}, userConfigPath: userPath });
         const result = createConfig({

@@ -111,6 +111,15 @@ const BUNDLED_ANDROID_PLUGIN_DIST_PATH = fileURLToPath(
   new URL("../../android-emulator-plugin/dist/mcp/server.js", import.meta.url),
 );
 
+// 修复原因（STALE 平台脆弱断言）：official plugin 的 MCP 入口来自内置 plugin.json 的
+// `${ZCODE_PLUGIN_ROOT}/dist/mcp/server.js`（POSIX 分隔符），official-plugin-runtime 只做
+// `${ZCODE_PLUGIN_ROOT}` 字符串替换，因此 Windows 上 rootPath 段是反斜杠、尾部仍是正斜杠。
+// 原断言用 path.join()（全反斜杠）比较，在 POSIX CI 通过、在 Windows 必然失败。
+// 这里统一按 `/` 归一后比较，指向的目标文件与断言语义都不变。
+function toSlashPath(value: string): string {
+  return value.replaceAll("\\", "/");
+}
+
 describe("ZCode plugins", () => {
   it("starts cached Claude icon migration without blocking overview callers", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-bootstrap-icon-migration-"));
@@ -125,16 +134,19 @@ describe("ZCode plugins", () => {
           plugins: [{ name: "figma", source: "./figma" }],
         }),
       );
-      let resolveFetch!: (response: Response) => void;
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(
-          () =>
-            new Promise<Response>((resolve) => {
-              resolveFetch = resolve;
-            }),
-        ),
+      // 修复原因（STALE）：0.9.6 起 Riddi 不再内置任何厂商 CDN 域名，图标源改为只读本地
+      // icon-sources.json 缓存（adapters/src/plugins/marketplace.ts 的
+      // loadClaudePluginIconSources 已不再发起任何网络请求）。原用例 stub globalThis.fetch
+      // 并等待它被调用，断言的是已删除的 CDN 拉取行为；这里预置本地缓存后，
+      // fetch 一次都不该被调用。adapters 侧同名用例已按此行为验证（tests/plugins.test.ts:339）。
+      await writeFile(
+        join(pluginStorageRoot, "icon-sources.json"),
+        JSON.stringify([
+          { name: "figma", icon: "https://cdn.example.com/figma.png", mimeType: "image/png" },
+        ]),
       );
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
 
       expect(
         enrichCachedClaudeMarketplaceIconsForOverview({
@@ -145,20 +157,13 @@ describe("ZCode plugins", () => {
         }),
       ).toBeUndefined();
 
-      resolveFetch(
-        new Response(
-          JSON.stringify([{ name: "figma", icon: "figma/icon.png", mimeType: "image/png" }]),
-          { status: 200 },
-        ),
-      );
       await vi.waitFor(async () => {
         const saved = JSON.parse(
           await readFile(join(marketplaceRoot, "marketplace.json"), "utf8"),
         ) as { plugins: Array<{ icon?: string }> };
-        expect(saved.plugins[0]?.icon).toBe(
-          "https://cdn.codegeex.cn/zcode/official-plugin/assets/figma/icon.png",
-        );
+        expect(saved.plugins[0]?.icon).toBe("https://cdn.example.com/figma.png");
       });
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
       await rm(root, { force: true, recursive: true });
@@ -1732,15 +1737,17 @@ describe("ZCode plugins", () => {
         },
       });
       expect(server?.args?.at(-2)).toBe(ZCODE_PLUGIN_HOST_COMMAND);
-      expect(server?.args?.at(-1)).toContain(
-        join(
-          "cache",
-          "zcode-plugins-official",
-          "ios-simulator",
-          "0.1.0",
-          "dist",
-          "mcp",
-          "server.js",
+      expect(toSlashPath(server?.args?.at(-1) ?? "")).toContain(
+        toSlashPath(
+          join(
+            "cache",
+            "zcode-plugins-official",
+            "ios-simulator",
+            "0.1.0",
+            "dist",
+            "mcp",
+            "server.js",
+          ),
         ),
       );
       await expect(
@@ -1829,15 +1836,17 @@ describe("ZCode plugins", () => {
         expect(server?.env).not.toHaveProperty(unusedEnv);
       }
       expect(server?.args?.at(-2)).toBe(ZCODE_PLUGIN_HOST_COMMAND);
-      expect(server?.args?.at(-1)).toContain(
-        join(
-          "cache",
-          "zcode-plugins-official",
-          "android-emulator",
-          "0.1.0",
-          "dist",
-          "mcp",
-          "server.js",
+      expect(toSlashPath(server?.args?.at(-1) ?? "")).toContain(
+        toSlashPath(
+          join(
+            "cache",
+            "zcode-plugins-official",
+            "android-emulator",
+            "0.1.0",
+            "dist",
+            "mcp",
+            "server.js",
+          ),
         ),
       );
       expect(existsSync(join(expectedRoot, ".zcode-plugin-seed.json"))).toBe(true);

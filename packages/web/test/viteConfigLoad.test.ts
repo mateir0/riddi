@@ -8,37 +8,23 @@ describe("web Vite config", () => {
     vi.unstubAllEnvs();
   });
 
-  it.each([undefined, "   ", " 3.12.9-beta.1 "])(
-    "构建版本使用手动值或 package 默认值：%s",
-    async (override) => {
-      vi.stubEnv("WEB_REMOTE_FRONTEND_VERSION", override);
-      const webRoot = resolve(import.meta.dirname, "..");
-      const { version } = JSON.parse(
-        await readFile(resolve(webRoot, "../../package.json"), "utf8"),
-      );
-      const result = await loadConfigFromFile(
-        { command: "build", mode: "production", isPreview: false, isSsrBuild: false },
-        resolve(webRoot, "vite.config.ts"),
-        webRoot,
-        "silent",
-      );
-      expect(result?.config.define?.__ZCODE_VERSION__).toBe(
-        JSON.stringify(override?.trim() || version),
-      );
-    },
-  );
-
-  it("非法手动版本在构建配置加载时失败", async () => {
-    vi.stubEnv("WEB_REMOTE_FRONTEND_VERSION", "../latest");
+  // 修复原因（0.9d 收尾，STALE 用例）：WEB_REMOTE_FRONTEND_VERSION 手动版本覆盖与非法值校验
+  // 已在 0.9a（d4f574e8 fork 清理）随 packages/web/vite/remoteFrontendVersion.mjs 一起移除，
+  // vite.config.ts 现在只用 package.json 的 version。该死性证明见提交说明中的 repo-wide grep：
+  // WEB_REMOTE_FRONTEND_VERSION / resolveRemoteFrontendVersion 全仓已无任何读者，
+  // 仅剩本文件自己的 vi.stubEnv。这里只保留仍然有效的 __ZCODE_VERSION__ 默认值覆盖。
+  it("构建版本使用 package.json 默认值", async () => {
     const webRoot = resolve(import.meta.dirname, "..");
-    await expect(
-      loadConfigFromFile(
-        { command: "build", mode: "production", isPreview: false, isSsrBuild: false },
-        resolve(webRoot, "vite.config.ts"),
-        webRoot,
-        "silent",
-      ),
-    ).rejects.toThrow(/version/i);
+    const { version } = JSON.parse(
+      await readFile(resolve(webRoot, "../../package.json"), "utf8"),
+    );
+    const result = await loadConfigFromFile(
+      { command: "build", mode: "production", isPreview: false, isSsrBuild: false },
+      resolve(webRoot, "vite.config.ts"),
+      webRoot,
+      "silent",
+    );
+    expect(result?.config.define?.__ZCODE_VERSION__).toBe(JSON.stringify(version));
   });
 
   it("publishes PDF.js CMaps for non-latin PDF rendering", async () => {

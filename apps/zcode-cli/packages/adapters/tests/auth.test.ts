@@ -38,7 +38,10 @@ describe("shared ZCode credentials", () => {
       });
 
       const raw = JSON.parse(await readFile(store.filePath, "utf-8")) as Record<string, string>;
-      expect(store.filePath).toBe(join(dir, ".zcode", "v2", "credentials.json"));
+      // 修复原因（STALE）：fork 提交 3926d117 已把 CLI/services 用户数据根从 ~/.zcode 迁到 ~/.riddi，
+      // 凭据路径随之变成 <baseDir>/.riddi/v2/credentials.json；本断言仍写死旧目录名。
+      // 仅更新测试断言的目录名，加密格式、键名与读写行为断言保持不变。
+      expect(store.filePath).toBe(join(dir, ".riddi", "v2", "credentials.json"));
       expect(raw[SHARED_ZCODE_CREDENTIAL_KEYS.zaiAccessToken]?.startsWith("enc:v1:")).toBe(true);
       expect(await store.load(SHARED_ZCODE_CREDENTIAL_KEYS.activeProvider)).toBe("zai");
       expect(await store.load(SHARED_ZCODE_CREDENTIAL_KEYS.zaiAccessToken)).toBe(
@@ -58,7 +61,10 @@ describe("shared ZCode credentials", () => {
 
   it("reads legacy plaintext credential values", async () => {
     const dir = await mkdtemp(join(tmpdir(), "zcode-auth-"));
-    const credentialsDir = join(dir, ".zcode", "v2");
+    // 修复原因（STALE）：同 3926d117 的目录迁移。本用例要验证的是“非 enc:v1: 前缀的旧明文值仍能读回”
+    // （credential-cipher.decrypt 对无前缀值原样返回），不是旧目录名；夹具改为写到当前凭据路径，
+    // 让被验证的明文兼容行为真正执行到。
+    const credentialsDir = join(dir, ".riddi", "v2");
     const credentialsPath = join(credentialsDir, "credentials.json");
 
     try {

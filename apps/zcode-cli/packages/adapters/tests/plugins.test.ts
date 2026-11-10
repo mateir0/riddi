@@ -428,21 +428,50 @@ describe("NodePluginAdapter", () => {
       http_proxy: "http://ambient-proxy:8080",
     });
 
+    // 修复原因（STALE，POSIX-only 断言）：applyNetworkEgressEnv 的 setEnvKey 在 win32 上
+    // 会先按“环境变量大小写不敏感”删除同名键的所有大小写变体，再写入规范键。由于
+    // ALL_PROXY_KEYS 的写入顺序是大写三键在前、小写三键在后，Windows 上最终只剩小写
+    // 一组（HTTP_PROXY/HTTPS_PROXY/ALL_PROXY 被后续小写写入清掉）；POSIX 环境变量大小写
+    // 敏感，两组键同时存在。原用例只按 POSIX 结果写死两组键，在本机 Windows 上必然失败。
+    // 该行为来自上游开源基线（apps/zcode-cli/packages/adapters/src/network/subprocess-env.ts
+    // 随 872ad960 引入后未再改动），不是 0.9 的行为变化；这里只把断言改成按宿主平台成立，
+    // 并补上“同一语义不得残留两种大小写”的不变量，比原断言更强。
+    const proxyKeys =
+      process.platform === "win32"
+        ? (["http_proxy", "https_proxy", "all_proxy"] as const)
+        : ([
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+          ] as const);
+    for (const key of proxyKeys) {
+      expect(env[key], key).toBe("http://127.0.0.1:7890");
+    }
+
+    const noProxyKeys =
+      process.platform === "win32" ? (["no_proxy"] as const) : (["NO_PROXY", "no_proxy"] as const);
+    for (const key of noProxyKeys) {
+      expect(env[key], key).toBe("localhost,127.0.0.1");
+    }
+
+    // 环境变量大小写不敏感的平台上，同一语义只能剩一组键，不能大小写并存。
+    for (const key of proxyKeys) {
+      const duplicates = Object.keys(env).filter(
+        (candidate) => candidate !== key && candidate.toLowerCase() === key.toLowerCase(),
+      );
+      expect(duplicates, `duplicate casing for ${key}`).toEqual([]);
+    }
+
     expect(env).toMatchObject({
-      ALL_PROXY: "http://127.0.0.1:7890",
       CURL_CA_BUNDLE: "/tmp/root-ca.pem",
       GIT_SSL_CAINFO: "/tmp/root-ca.pem",
-      HTTPS_PROXY: "http://127.0.0.1:7890",
-      HTTP_PROXY: "http://127.0.0.1:7890",
       NODE_EXTRA_CA_CERTS: "/tmp/root-ca.pem",
-      NO_PROXY: "localhost,127.0.0.1",
       PATH: "/usr/bin:/bin",
       REQUESTS_CA_BUNDLE: "/tmp/root-ca.pem",
       SSL_CERT_FILE: "/tmp/root-ca.pem",
-      all_proxy: "http://127.0.0.1:7890",
-      http_proxy: "http://127.0.0.1:7890",
-      https_proxy: "http://127.0.0.1:7890",
-      no_proxy: "localhost,127.0.0.1",
     });
   });
 
