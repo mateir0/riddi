@@ -2,6 +2,9 @@
 // 「Saving the run, and running it again」）：名字规则、落点预览、交给 ZCode 的那条消息。
 //
 // 与组件分文件的理由同 globalWorkflowGroupHelpers：这些判定没有 React，也该能被单独测。
+//
+// 修复原因：packages/ui 不依赖 @zcode/contracts，拿不到 SAVED_WORKFLOW_GLOBAL_DIR，
+// 因此全局档根只能在这里复刻字面量（与项目档字面量同一种处理）。
 import type { ZCodeSavedWorkflowScope } from "@zcode/shared";
 
 /**
@@ -23,8 +26,11 @@ export function isValidSavedWorkflowNameText(name: string): boolean {
  * 落点预览。项目档写相对路径（用户在自己的仓库里看到的就是它），全局档写 `~` 开头的家目录路径
  * ——那是 **agent 机器**的家目录，远程项目因此根本不给全局档这个选项。
  *
- * 0.9e：全局档根目录随 SAVED_WORKFLOW_GLOBAL_DIR 从 ~/.zcode/workflows 改到 ~/.riddi/workflows，
- * 预览字符串必须与真实落点一致，否则用户按提示找到的路径并不存在。
+ * 修复原因：0.9e 起全局档根目录随 contracts 的 SAVED_WORKFLOW_GLOBAL_DIR 从
+ * `.zcode/workflows` 改成 `.riddi/workflows`，预览字符串必须与真实落点一致，
+ * 否则用户按提示找到的路径并不存在。这里无法直接引用该常量（packages/ui 不依赖
+ * @zcode/contracts），所以同步维护这份字面量；项目档按设计仍留在 workspace 的
+ * `.zcode/workflows` 下。
  */
 export function savedWorkflowPathPreview(scope: ZCodeSavedWorkflowScope, name: string): string {
   const file = `${name}.dwf.ts`;

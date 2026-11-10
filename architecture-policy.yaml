@@ -1313,8 +1313,9 @@ exceptions:
       - packages/ui/src/hooks/useToolPresentationHostCapabilities.ts
       - packages/ui/src/chat-input-toolbar/thoughtLevelLabels.ts
       - packages/ui/src/components/workflow-timeline/subagent-model-label.ts
+      - packages/ui/src/components/workflow-timeline/workflowRunSave.ts
       - packages/desktop/src/main/fileApplications.ts
-    reason: Feature-branch files admitted path-exact; adopting conversation-share, tool presentation or renderer directories needs a separate module boundary refactor (same pattern as settings-machine-unmanaged-edit).
+    reason: Feature-branch files admitted path-exact; adopting conversation-share, tool presentation or renderer directories needs a separate module boundary refactor (same pattern as settings-machine-unmanaged-edit). workflowRunSave.ts renders the saved-workflow landing preview, which must match SAVED_WORKFLOW_GLOBAL_DIR, so it is admitted path-exact next to its sibling in the same directory rather than duplicated.
   - id: workflow-notifications-unmanaged-files
     rule: unmanaged-new-file
     paths:
