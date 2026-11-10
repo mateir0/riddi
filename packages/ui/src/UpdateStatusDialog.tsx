@@ -108,7 +108,9 @@ export function UpdateStatusDialog({
             src={macosDockIconUrl}
             alt=""
             aria-hidden="true"
-            className="pointer-events-none -ml-[5px] size-12 shrink-0 select-none shadow-none drop-shadow-none"
+            // 修复原因：Riddi 应用图标是满幅正方形位图（无透明留白），
+            // 直接铺满会露出直角；补 8px 圆角与桌面端应用图标观感一致。
+            className="pointer-events-none -ml-[5px] size-12 shrink-0 select-none rounded-lg shadow-none drop-shadow-none"
             draggable={false}
           />
           <div className="min-w-0 flex-1 space-y-1.5">

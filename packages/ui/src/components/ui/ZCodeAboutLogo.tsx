@@ -1,4 +1,8 @@
 import { cn } from "@/components/lib/utils.js";
+// 修复原因：Riddi 品牌图形统一改用安装包同源的应用图标（packages/desktop/build/icon.png
+// 的 UI 副本）。保留原 SVG 外框与 viewBox，只把 Z 字形线稿换成位图标记，
+// 这样调用方的尺寸类（h-auto w-10 / w-3.25 / w-14）与既有布局断言都不用改。
+import riddiAppIconUrl from "@/assets/riddi-app-icon.png";
 
 export function ZCodeAboutLogo({ className }: { className?: string }) {
   return (
@@ -12,14 +16,14 @@ export function ZCodeAboutLogo({ className }: { className?: string }) {
       aria-hidden="true"
       focusable="false"
     >
-      <path
-        fill="currentColor"
-        d="M134.4 0.130152L116.48 25.6022C113.665 29.5699 109.054 32.0019 104.064 32.0019H6.3999V0C6.3999 0.130149 134.4 0.130152 134.4 0.130152Z"
-      />
-      <path fill="currentColor" d="M256 0.130127L102.401 217.732H0L153.599 0.130127H256Z" />
-      <path
-        fill="currentColor"
-        d="M121.601 217.732L139.65 192.134C142.465 188.166 147.076 185.734 152.067 185.734H249.604V217.736H121.601V217.732Z"
+      {/* 图标是正方形位图，用 meet 在原有 256x218 画框内居中留边，避免裁掉标记本体。 */}
+      <image
+        href={riddiAppIconUrl}
+        x="0"
+        y="0"
+        width="256"
+        height="218"
+        preserveAspectRatio="xMidYMid meet"
       />
     </svg>
   );
